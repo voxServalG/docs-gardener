@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "docs-gardener": {
+      "type": "local",
+      "command": ["docs-gardener", "mcp"],
+      "enabled": true
+    }
+  }
+}
