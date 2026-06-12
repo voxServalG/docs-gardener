@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "hy-workflow": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "--prefer-online",
+        "github:voxServalG/hy-workflow-mcp"
+      ]
+    },
+    "docs-gardener": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "--prefer-online",
+        "github:voxServalG/docs-gardener",
+        "mcp"
+      ]
+    }
+  }
+}

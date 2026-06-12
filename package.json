@@ -3,18 +3,27 @@
   "version": "1.0.0",
   "description": "MCP 文档语义审查工具 — 对比文档描述与代码实际行为是否一致",
   "type": "module",
+  "types": "./index.d.ts",
   "bin": {
-    "docs-gardener": "./index.js"
+    "docs-gardener": "./src/index.js"
+  },
+  "scripts": {
+    "check": "node --check src/index.js src/lib/*.js src/deploy/*.js",
+    "test": "node --test test/*.test.js",
+    "typecheck": "tsc --noEmit"
   },
   "files": [
-    "index.js",
-    "lib/",
-    "deploy/",
-    "templates/"
+    "index.d.ts",
+    "src/",
+    "templates/",
+    "tsconfig.json"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   },
   "license": "MIT",
   "engines": {
