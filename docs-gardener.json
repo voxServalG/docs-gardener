@@ -1,0 +1,10 @@
+{
+  "docsDir": "docs",
+  "codeDirs": [
+    "src",
+    "test"
+  ],
+  "codeExt": ".ts",
+  "baseBranch": "dev",
+  "catalogs": {}
+}
