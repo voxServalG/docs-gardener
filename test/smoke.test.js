@@ -11,3 +11,9 @@ test("CLI default command prints usage", async () => {
   assert.match(stdout, /docs-gardener/);
   assert.match(stdout, /docs-gardener mcp/);
 });
+
+test("polish module can be imported", async () => {
+  const module = await import("../src/lib/polish.js");
+
+  assert.equal(typeof module.polish, "function");
+});

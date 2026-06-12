@@ -6,6 +6,7 @@ import { load } from "./config.js";
 import { scan } from "./scanner.js";
 import { check } from "./checker.js";
 import { apply } from "./apply.js";
+import { polish } from "./polish.js";
 
 export async function startServer() {
   const projectRoot = process.cwd();
@@ -41,6 +42,20 @@ export async function startServer() {
           content: [{ type: "text", text: `❌ ${result.error}` }],
         };
       }
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+  );
+
+  server.tool(
+    "garden-polish",
+    "按浅白写作指导生成文档润色建议。工具不会修改文件；可应用建议固定输出 file、oldText、newText、reason 四个字段，并通过 envelope 返回 display、hint、requires_user、stop_here、allowedTools、blockedTools 和 recovery，方便 agent 审阅后再调用 garden-apply。",
+    {
+      file: z.string().describe("要润色的 Markdown 文档路径，如 docs/README.md"),
+    },
+    async (args) => {
+      const result = polish(projectRoot, config, args);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
