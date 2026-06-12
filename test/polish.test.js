@@ -5,9 +5,10 @@ import path from "node:path";
 import test from "node:test";
 import { polish } from "../src/lib/polish.js";
 
-test("polish returns fixed edit shape and envelope fields", () => {
+test("polish returns model context, fixed edit schema, and envelope fields", () => {
   const root = makeProject({
     "docs/README.md": "# Guide\n\n请进行检查，并确保用户能够理解。\n",
+    "docs/plain-writing-guidance.md": "# 浅白写作指导\n\n优先使用常见、直接、具体的词语。\n",
   });
 
   const result = polish(root, { docsDir: "docs" }, { file: "docs/README.md" });
@@ -18,19 +19,17 @@ test("polish returns fixed edit shape and envelope fields", () => {
   assert.equal(result.requires_user, true);
   assert.equal(result.stop_here, true);
   assert.deepEqual(result.allowedTools, ["garden-apply"]);
-  assert.equal(result.edits.length, 1);
-  assert.deepEqual(Object.keys(result.edits[0]).sort(), [
-    "file",
-    "newText",
-    "oldText",
-    "reason",
-  ]);
-  assert.equal(result.edits[0].file, "docs/README.md");
-  assert.equal(result.edits[0].oldText, "请进行检查，并确保用户能够理解。");
-  assert.equal(result.edits[0].newText, "请检查，并确保用户能理解。");
+  assert.equal(result.doc.path, "docs/README.md");
+  assert.match(result.doc.content, /请进行检查/);
+  assert.equal(result.guidance.path, "docs/plain-writing-guidance.md");
+  assert.match(result.guidance.content, /优先使用常见/);
+  assert.deepEqual(result.editSchema.required, ["file", "oldText", "newText", "reason"]);
+  assert.equal(result.editSchema.additionalProperties, false);
+  assert.equal("edits" in result, false);
+  assert.equal("findings" in result, false);
 });
 
-test("polish skips code fences, inline code, and markdown links", () => {
+test("polish returns constraints instead of hard-coded edits", () => {
   const root = makeProject({
     "docs/README.md": [
       "# Guide",
@@ -49,22 +48,11 @@ test("polish skips code fences, inline code, and markdown links", () => {
 
   const result = polish(root, { docsDir: "docs" }, { file: "docs/README.md" });
 
-  assert.equal(result.edits.length, 1);
-  assert.equal(result.edits[0].oldText, "普通文本能够改写。");
-  assert.equal(result.edits[0].newText, "普通文本能改写。");
-});
-
-test("polish reports long lines as findings without edits", () => {
-  const longLine = "这是一段很长的文字，用来说明同一个段落里同时包含安装步骤、行为说明、限制条件、例外情况和后续处理方式，因此读者需要花更多时间才能理解。";
-  const root = makeProject({
-    "docs/README.md": `# Guide\n\n${longLine}\n`,
-  });
-
-  const result = polish(root, { docsDir: "docs" }, { file: "docs/README.md" });
-
-  assert.equal(result.edits.length, 0);
-  assert.equal(result.findings.length, 1);
-  assert.equal(result.findings[0].text, longLine);
+  assert.equal("edits" in result, false);
+  assert.equal("findings" in result, false);
+  assert.ok(result.constraints.some((item) => item.includes("fenced code blocks")));
+  assert.ok(result.constraints.some((item) => item.includes("inline code")));
+  assert.ok(result.constraints.some((item) => item.includes("Markdown link targets")));
 });
 
 function makeProject(files) {
