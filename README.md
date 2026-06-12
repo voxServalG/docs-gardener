@@ -25,13 +25,16 @@ docs-gardener mcp        # 启动 MCP server
 
 ### mcp
 
-启动 MCP server，通过 stdio 与 opencode 通信。暴露 3 个 tool：
+启动 MCP server，通过 stdio 与 opencode 通信。暴露 4 个 tool：
 
 | Tool | 作用 |
 |------|------|
 | `garden-scan` | 全量扫描 docs 目录，返回所有文件的元数据、catalogs 名单和机械预检问题 |
 | `garden-check` | 深度检查单个 doc 文件，返回 doc 全文 + 关联代码全文 + catalogs |
+| `garden-polish` | 提供文档内容、浅白写作指导和固定 edit 契约，供大模型判断润色建议 |
 | `garden-apply` | 批量编辑文档并创建 GitHub PR，失败自动回滚 |
+
+`garden-polish` 不用硬编码规则生成修改。它返回文档内容、写作指导、保护约束和固定 edit schema。大模型提出的可应用建议固定使用 `file`、`oldText`、`newText`、`reason` 四个字段。工具结果仍包含 agent-facing envelope，例如 `display`、`hint`、`requires_user`、`stop_here` 和 `allowedTools`。
 
 ## 模块名录
 
