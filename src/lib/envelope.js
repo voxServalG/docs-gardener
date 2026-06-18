@@ -1,0 +1,73 @@
+export function successEnvelope({
+  tool,
+  mode,
+  phase,
+  next,
+  summary = {},
+  data = {},
+  display = null,
+  hint = "",
+  requires_user = false,
+  stop_here = false,
+  allowedTools = [],
+  blockedTools = [],
+}) {
+  return {
+    ok: true,
+    tool,
+    mode,
+    phase,
+    next,
+    summary,
+    data,
+    error: null,
+    display,
+    hint,
+    requires_user,
+    stop_here,
+    allowedTools,
+    blockedTools,
+  };
+}
+
+export function errorEnvelope({
+  tool,
+  mode,
+  phase,
+  next = phase,
+  type = "validation",
+  subtype = "failed",
+  param = null,
+  message,
+  hint = "",
+  summary = {},
+  displayTitle = "Command failed",
+  allowedTools = [],
+  blockedTools = [],
+}) {
+  return {
+    ok: false,
+    tool,
+    mode,
+    phase,
+    next,
+    summary,
+    data: null,
+    error: {
+      type,
+      subtype,
+      param,
+      message,
+      hint,
+    },
+    display: {
+      title: displayTitle,
+      body: message,
+    },
+    hint,
+    requires_user: true,
+    stop_here: true,
+    allowedTools,
+    blockedTools,
+  };
+}

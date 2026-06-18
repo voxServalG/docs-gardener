@@ -35,10 +35,15 @@ export function extractLinks(filePath) {
   return links;
 }
 
-export function buildCodeRefRegex(codeDirs, codeExt) {
-  const dirs = codeDirs.map((d) => d.replace(/\/$/, "")).join("|");
-  const ext = codeExt.replace(".", "\\.");
-  return new RegExp(`(?:${dirs})/[^\\s\`)]+\\${ext}`, "g");
+export function buildCodeRefRegex(codeDirs = [], codeExt = ".py") {
+  const dirs = codeDirs.map((d) => escapeRegex(d.replace(/\/$/, ""))).join("|");
+  const exts = (Array.isArray(codeExt) ? codeExt : [codeExt]).map((ext) => escapeRegex(ext));
+  if (!dirs || exts.length === 0) return /$a/g;
+  return new RegExp(`(?:${dirs})/[^\\s\`)]+(?:${exts.join("|")})`, "g");
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function extractCodePathsFromMdLinks(links, codeExt) {

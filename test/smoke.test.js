@@ -10,6 +10,17 @@ test("CLI default command prints usage", async () => {
 
   assert.match(stdout, /docs-gardener/);
   assert.match(stdout, /docs-gardener mcp/);
+  assert.match(stdout, /docs-gardener scan/);
+  assert.match(stdout, /docs-gardener grow/);
+});
+
+test("CLI scan prints a JSON envelope", async () => {
+  const { stdout } = await execFileAsync(process.execPath, ["src/index.js", "scan"]);
+  const result = JSON.parse(stdout);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.tool, "garden-scan");
+  assert.equal(result.phase, "scan");
 });
 
 test("polish module can be imported", async () => {

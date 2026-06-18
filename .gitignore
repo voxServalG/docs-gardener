@@ -1,3 +1,6 @@
 node_modules/
 .hy/
 .opencode/
+tests/_test_*
+.codex/
+.mcp.json
