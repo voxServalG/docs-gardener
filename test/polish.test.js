@@ -14,17 +14,20 @@ test("polish returns model context, fixed edit schema, and envelope fields", () 
   const result = polish(root, { docsDir: "docs" }, { file: "docs/README.md" });
 
   assert.equal(result.ok, true);
+  assert.equal(result.tool, "garden-polish");
+  assert.equal(result.mode, "soft");
   assert.equal(result.phase, "polish");
   assert.equal(result.next, "review");
   assert.equal(result.requires_user, true);
   assert.equal(result.stop_here, true);
-  assert.deepEqual(result.allowedTools, ["garden-apply"]);
+  assert.deepEqual(result.allowedTools, []);
   assert.equal(result.doc.path, "docs/README.md");
   assert.match(result.doc.content, /请进行检查/);
   assert.equal(result.guidance.path, "docs/plain-writing-guidance.md");
   assert.match(result.guidance.content, /优先使用常见/);
   assert.deepEqual(result.editSchema.required, ["file", "oldText", "newText", "reason"]);
   assert.equal(result.editSchema.additionalProperties, false);
+  assert.equal(result.data.doc.path, "docs/README.md");
   assert.equal("edits" in result, false);
   assert.equal("findings" in result, false);
 });

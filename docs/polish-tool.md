@@ -1,22 +1,24 @@
 # garden-polish
 
-`garden-polish` 准备文档润色所需的上下文。它面向文档写作，不面向法律文本写作。
+`garden-polish` prepares context for style and wording review. It handles soft writing issues only.
 
-工具参考 [浅白写作指导](plain-writing-guidance.md)，目标是降低阅读摩擦，同时保留准确性。
+The tool references [plain writing guidance](plain-writing-guidance.md). The goal is lower reading friction while preserving accuracy.
 
-## 行为
+## Behavior
 
-- 只读取 Markdown 文档。
-- 不直接修改文件。
-- 不自动调用 `garden-apply`。
-- 不用正则替换或固定长度阈值生成润色建议。
-- 返回文档内容、浅白写作指导、保护约束和固定 edit 格式。
-- 由调用工具的大模型判断是否需要润色。
-- 大模型提出 edit 后，仍需用户审阅。
+- Reads one Markdown document.
+- Reads the plain writing guidance when present.
+- Does not modify files.
+- Does not fix hard structural problems.
+- Does not fix links or split documents.
+- Does not modify fenced code blocks.
+- Does not modify inline code, commands, paths, field names, API names, or error codes.
+- Returns document content, guidance, constraints, and a fixed edit schema.
+- Requires the caller to show proposed edits to the user before applying them through the host workflow.
 
-## Edit 格式
+## Edit format
 
-每条可应用建议固定使用四个字段：
+Each proposed edit uses four fields:
 
 ```json
 {
@@ -27,19 +29,20 @@
 }
 ```
 
-不要增加 `risk`、评分或软规则检查字段。
+Do not add `risk`, scores, or soft-rule result fields.
 
-工具本身不生成这些 edit。大模型应根据返回的文档、指导和约束生成 edit。
+The tool itself does not generate edits. The agent uses the returned document, guidance, and constraints to decide whether edits are needed.
 
 ## Envelope
 
-工具结果仍使用 agent-facing envelope。
+The tool result uses the shared envelope:
 
-- `display` 是给用户看的摘要。
-- `hint` 是给 agent 的下一步提示。
-- `requires_user` 表示需要用户审阅。
-- `stop_here` 表示本轮应停下，不能自动应用。
-- `allowedTools` 说明审阅后可调用的工具。
-- `recovery` 说明失败后如何恢复。
-
-工具应要求用户审阅大模型提出的 edit。只有用户接受的 edit 才能传给 `garden-apply`。
+- `ok` says whether the tool succeeded.
+- `tool` is `garden-polish`.
+- `mode` is `soft`.
+- `phase` is `polish`.
+- `next` is `review`.
+- `summary` contains compact metadata.
+- `data` contains the document, guidance, constraints, and edit schema.
+- `requires_user` is `true`.
+- `stop_here` is `true`.
