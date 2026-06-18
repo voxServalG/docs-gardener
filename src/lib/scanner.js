@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { extractAll } from "./catalogs.js";
+import { validateArchitecture } from "./architecture.js";
+import { successEnvelope } from "./envelope.js";
 import {
   getAllMdFiles,
   countLines,
@@ -13,7 +15,7 @@ import {
 } from "./utils.js";
 
 export function scan(projectRoot, config) {
-  const catalogs = extractAll(projectRoot, config.catalogs);
+  const catalogs = extractAll(projectRoot, config.catalogs || {});
   const docsDir = path.join(projectRoot, config.docsDir);
   const allMdFiles = getAllMdFiles(docsDir);
   const codeRefRegex = buildCodeRefRegex(config.codeDirs, config.codeExt);
@@ -21,15 +23,8 @@ export function scan(projectRoot, config) {
   const MAX_LINES = 200;
   const STALE_DAYS = 30;
 
-  const allCatalogNames = new Set();
-  for (const items of Object.values(catalogs)) {
-    for (const item of items) {
-      allCatalogNames.add(item);
-    }
-  }
-
   const files = allMdFiles.map((filePath) => {
-    const relativePath = path.relative(projectRoot, filePath);
+    const relativePath = normalizePath(path.relative(projectRoot, filePath));
     const content = fs.readFileSync(filePath, "utf-8");
     const lineCount = countLines(filePath);
     const links = extractLinks(filePath);
@@ -38,13 +33,15 @@ export function scan(projectRoot, config) {
 
     const codeRefs = [];
     let m;
+    codeRefRegex.lastIndex = 0;
     while ((m = codeRefRegex.exec(content)) !== null) {
       codeRefs.push(m[0]);
     }
 
-    const codeLinks = extractCodePathsFromMdLinks(links, config.codeExt);
+    const codeLinks = extractCodePathsFromMdLinks(links, config.codeExt).map((target) =>
+      normalizePath(path.relative(projectRoot, path.resolve(path.dirname(filePath), target)))
+    );
     const mdLinks = extractMdLinksOnly(links, config.codeExt);
-
     const cliRefs = extractCliRefs(content);
 
     const mentionsCatalogs = {};
@@ -61,14 +58,17 @@ export function scan(projectRoot, config) {
       mechanicalIssues.push({
         rule: "line-limit",
         severity: "error",
+        file: relativePath,
         message: `超过 ${MAX_LINES} 行限制（当前 ${lineCount} 行）`,
       });
     }
 
-    if (referencedBy.length === 0) {
+    const indexPath = normalizePath(path.join(config.docsDir, "index.md"));
+    if (referencedBy.length === 0 && relativePath !== indexPath) {
       mechanicalIssues.push({
         rule: "has-reference",
         severity: "error",
+        file: relativePath,
         message: "未被任何其他 md 文件引用",
       });
     }
@@ -78,6 +78,7 @@ export function scan(projectRoot, config) {
       mechanicalIssues.push({
         rule: "stale-time",
         severity: "warning",
+        file: relativePath,
         message: `超过 ${STALE_DAYS} 天未更新（最后修改: ${lastModified}）`,
       });
     }
@@ -90,16 +91,20 @@ export function scan(projectRoot, config) {
         mechanicalIssues.push({
           rule: "dead-link",
           severity: "error",
+          file: relativePath,
+          target,
           message: `链接目标不存在: [${link.text}](${target})`,
         });
       }
     }
 
-    for (const ref of [...new Set(codeRefs)]) {
+    for (const ref of [...new Set([...codeRefs, ...codeLinks])]) {
       if (!fs.existsSync(path.join(projectRoot, ref))) {
         mechanicalIssues.push({
           rule: "dead-reference",
           severity: "error",
+          file: relativePath,
+          reference: ref,
           message: `引用的代码文件不存在: ${ref}`,
         });
       }
@@ -118,14 +123,156 @@ export function scan(projectRoot, config) {
     };
   });
 
-  return {
-    catalogs,
-    files,
-    summary: {
-      total: files.length,
-      withMechanicalIssues: files.filter((f) => f.mechanicalIssues.length > 0).length,
-    },
+  const hardErrors = [];
+  const warnings = [];
+
+  if (!fs.existsSync(docsDir)) {
+    hardErrors.push({
+      rule: "missing-docs-dir",
+      severity: "error",
+      file: config.docsDir,
+      message: `配置的文档目录不存在: ${config.docsDir}`,
+    });
+  }
+
+  for (const file of files) {
+    for (const issue of file.mechanicalIssues) {
+      if (issue.severity === "error") hardErrors.push(issue);
+      if (issue.severity === "warning") warnings.push(issue);
+    }
+  }
+
+  const styleIssues = collectStyleIssues(projectRoot, files);
+  const coverage = collectCoverage(projectRoot, config, files);
+  const architecture = validateArchitecture(projectRoot, config.docsDir, allMdFiles);
+  const summary = {
+    total: files.length,
+    hardErrors: hardErrors.length,
+    warnings: warnings.length,
+    styleIssues: styleIssues.length,
+    coverageUndocumented: coverage.undocumented.length,
+    missingCoreRoles: architecture.missingCoreRoles.length,
   };
+
+  return successEnvelope({
+    tool: "garden-scan",
+    mode: "hard",
+    phase: "scan",
+    next: hardErrors.length > 0 ? "garden-fix" : "garden-polish",
+    summary,
+    data: {
+      catalogs,
+      files,
+      hardErrors,
+      warnings,
+      styleIssues,
+      coverage,
+      architecture,
+      summary,
+    },
+    display: {
+      title: "Scan complete",
+      body: `Scanned ${files.length} Markdown file(s): ${hardErrors.length} hard error(s), ${warnings.length} warning(s), ${styleIssues.length} style issue(s).`,
+    },
+    hint: hardErrors.length > 0
+      ? "Call garden-fix with the scan result to prepare a hard-error fix plan."
+      : "No hard errors found. Continue with garden-polish for wording and style review.",
+    allowedTools: hardErrors.length > 0 ? ["garden-fix"] : ["garden-polish"],
+  });
+}
+
+function collectStyleIssues(projectRoot, files) {
+  const vagueTerms = ["检查", "处理", "优化", "相关", "一些"];
+  const issues = [];
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(projectRoot, file.path), "utf-8");
+    const prose = stripProtectedText(content);
+    for (const term of vagueTerms) {
+      if (prose.includes(term)) {
+        issues.push({
+          rule: "vague-term",
+          severity: "style",
+          file: file.path,
+          term,
+          message: `可能存在不够具体的表达: ${term}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+function stripProtectedText(content) {
+  return content
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`]+`/g, "")
+    .replace(/\[[^\]]*\]\([^)]*\)/g, "");
+}
+
+function collectCoverage(projectRoot, config, files) {
+  const docsContent = files.map((file) => fs.readFileSync(path.join(projectRoot, file.path), "utf-8"));
+  const surfaces = collectSurfaces(config);
+  const documented = [];
+  const undocumented = [];
+  const staleMentions = [];
+
+  for (const surface of surfaces) {
+    const matchedDocumentationFiles = files
+      .filter((file, index) => docsContent[index].includes(surface.name))
+      .map((file) => file.path);
+    const item = { ...surface, matchedDocumentationFiles };
+    if (matchedDocumentationFiles.length > 0) {
+      documented.push(item);
+    } else {
+      undocumented.push({
+        ...item,
+        reason: `${surface.type} surface is not mentioned by Markdown docs.`,
+      });
+    }
+  }
+
+  for (const file of files) {
+    for (const cli of file.mentionsCLI || []) {
+      if (looksLikeDocsGardenerSurface(cli) && !surfaces.some((surface) => surface.name === cli)) {
+        staleMentions.push({
+          surface: cli,
+          surfaceType: "cli",
+          documentationFile: file.path,
+          reason: "Markdown mentions a docs-gardener command that is not in the detected public surface list.",
+        });
+      }
+    }
+  }
+
+  return { documented, undocumented, staleMentions };
+}
+
+function collectSurfaces(config) {
+  const surfaces = [
+    ["docs-gardener scan", "cli", "src/index.js"],
+    ["docs-gardener fix", "cli", "src/index.js"],
+    ["docs-gardener polish", "cli", "src/index.js"],
+    ["docs-gardener grow", "cli", "src/index.js"],
+    ["garden-scan", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-fix", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-polish", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-grow", "mcpTool", "src/lib/mcp-server.js"],
+  ].map(([name, type, source]) => ({ name, type, source }));
+
+  for (const key of ["docsDir", "codeDirs", "codeExt", "baseBranch", "catalogs"]) {
+    surfaces.push({ name: key, type: "configKey", source: "src/lib/config.js" });
+  }
+
+  for (const [name, entry] of Object.entries(config.catalogs || {})) {
+    if (!entry || !entry.enabled) continue;
+    surfaces.push({ name, type: "catalogItem", source: entry.source || "docs-gardener.json" });
+  }
+
+  return surfaces;
+}
+
+function looksLikeDocsGardenerSurface(value) {
+  return value.startsWith("docs-gardener ") || value.startsWith("garden-");
 }
 
 function extractCliRefs(content) {
@@ -136,4 +283,8 @@ function extractCliRefs(content) {
     refs.push(m[1]);
   }
   return [...new Set(refs)];
+}
+
+function normalizePath(file) {
+  return file.split(path.sep).join("/");
 }

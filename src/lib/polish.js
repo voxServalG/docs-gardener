@@ -1,29 +1,60 @@
 import fs from "fs";
 import path from "path";
+import { successEnvelope, errorEnvelope } from "./envelope.js";
 
 const GUIDANCE_FILE = "docs/plain-writing-guidance.md";
 
-export function polish(projectRoot, config, { file }) {
+export function polish(projectRoot, config, { file } = {}) {
+  if (!file) {
+    return errorEnvelope({
+      tool: "garden-polish",
+      mode: "soft",
+      phase: "polish",
+      param: "file",
+      message: "缺少必填参数: file",
+      hint: "Pass a Markdown file under the configured docsDir.",
+      allowedTools: ["garden-polish"],
+    });
+  }
+
   const fullPath = path.join(projectRoot, file);
   const docsRoot = path.resolve(projectRoot, config.docsDir || "docs");
   const resolved = path.resolve(fullPath);
 
   if (!resolved.startsWith(docsRoot + path.sep) && resolved !== docsRoot) {
-    return errorEnvelope(
-      `文件不在文档目录内: ${file}`,
-      "Choose a Markdown file under the configured docsDir."
-    );
+    return errorEnvelope({
+      tool: "garden-polish",
+      mode: "soft",
+      phase: "polish",
+      param: "file",
+      message: `文件不在文档目录内: ${file}`,
+      hint: "Choose a Markdown file under the configured docsDir.",
+      allowedTools: ["garden-polish"],
+    });
   }
 
   if (!file.endsWith(".md")) {
-    return errorEnvelope(
-      `只支持 Markdown 文件: ${file}`,
-      "Choose a .md file."
-    );
+    return errorEnvelope({
+      tool: "garden-polish",
+      mode: "soft",
+      phase: "polish",
+      param: "file",
+      message: `只支持 Markdown 文件: ${file}`,
+      hint: "Choose a .md file.",
+      allowedTools: ["garden-polish"],
+    });
   }
 
   if (!fs.existsSync(fullPath)) {
-    return errorEnvelope(`文件不存在: ${file}`, "Check the file path and try again.");
+    return errorEnvelope({
+      tool: "garden-polish",
+      mode: "soft",
+      phase: "polish",
+      param: "file",
+      message: `文件不存在: ${file}`,
+      hint: "Check the file path and try again.",
+      allowedTools: ["garden-polish"],
+    });
   }
 
   const guidancePath = path.join(projectRoot, GUIDANCE_FILE);
@@ -31,26 +62,7 @@ export function polish(projectRoot, config, { file }) {
     ? fs.readFileSync(guidancePath, "utf-8")
     : "";
   const content = fs.readFileSync(fullPath, "utf-8");
-
-  return {
-    ok: true,
-    phase: "polish",
-    next: "review",
-    display: {
-      title: "Polish context ready",
-      body: `Loaded ${file} and the plain-writing guidance. Use the guidance to decide whether edits are needed, then show any proposed edits to the user before applying changes.`,
-      files: [file],
-    },
-    hint: "Use the returned document, guidance, constraints, and editSchema to make model-based polish judgments. Do not invent fields. Only pass user-accepted edits to garden-apply.",
-    requires_user: true,
-    stop_here: true,
-    allowedTools: ["garden-apply"],
-    blockedTools: [],
-    summary: {
-      filesChecked: 1,
-      guidanceFile: guidance ? GUIDANCE_FILE : null,
-      editFields: ["file", "oldText", "newText", "reason"],
-    },
+  const data = {
     doc: {
       path: file,
       content,
@@ -79,29 +91,29 @@ export function polish(projectRoot, config, { file }) {
       additionalProperties: false,
     },
   };
-}
 
-function errorEnvelope(message, instruction) {
   return {
-    ok: false,
-    phase: "polish",
-    next: "polish",
-    display: {
-      title: "Polish failed",
-      body: message,
-    },
-    hint: instruction,
-    requires_user: true,
-    stop_here: true,
-    allowedTools: ["garden-polish"],
-    blockedTools: ["garden-apply"],
-    recovery: {
+    ...successEnvelope({
       tool: "garden-polish",
-      instruction,
-    },
-    error: {
-      message,
-      recovery: instruction,
-    },
+      mode: "soft",
+      phase: "polish",
+      next: "review",
+      summary: {
+        filesChecked: 1,
+        guidanceFile: guidance ? GUIDANCE_FILE : null,
+        editFields: ["file", "oldText", "newText", "reason"],
+      },
+      data,
+      display: {
+        title: "Polish context ready",
+        body: `Loaded ${file} and the plain-writing guidance. Use the guidance to decide whether edits are needed, then show any proposed edits to the user before applying changes.`,
+        files: [file],
+      },
+      hint: "Use the returned document, guidance, constraints, and editSchema to make model-based polish judgments. Do not invent fields. Apply only user-accepted edits through the host workflow.",
+      requires_user: true,
+      stop_here: true,
+      allowedTools: [],
+    }),
+    ...data,
   };
 }
