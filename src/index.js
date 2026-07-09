@@ -23,55 +23,65 @@ async function main() {
       printJson(runTool(command, {}, projectRoot));
       break;
     }
+    case "scan":
     case "scan-soft": {
-      const args = parseScanSoftArgs(process.argv.slice(3));
+      const args = parseScanArgs(process.argv.slice(3));
       printJson(runTool(command, args, projectRoot));
       break;
     }
     case "polish": {
-      printJson(runTool(command, parseFileArg(process.argv.slice(3)), projectRoot));
+      printJson(runTool(command, parsePolishArgs(process.argv.slice(3)), projectRoot));
       break;
     }
-    case "fix-hard":
-    case "fix-soft": {
+    case "fix": {
       const args = parseFixArgs(process.argv.slice(3));
+      printJson(runTool(command, args, projectRoot));
+      break;
+    }
+    case "ack": {
+      const args = parseAckArgs(process.argv.slice(3));
       printJson(runTool(command, args, projectRoot));
       break;
     }
     default: {
       console.log("docs-gardener · MCP 文档治理工具\n");
       console.log("用法:");
-      console.log("  docs-gardener deploy                        部署配置（交互式）");
-      console.log("  docs-gardener mcp                           启动 MCP server");
-      console.log("  docs-gardener scan-hard                     机械扫描，输出硬错误 + coverage 报告");
-      console.log("  docs-gardener fix-hard --input scan.json    从 scan-hard 报告准备硬错误修复计划");
-      console.log("  docs-gardener scan-soft                     打包 LLM review bundle");
-      console.log("  docs-gardener fix-soft --input findings.json 消化 LLM 回填的 findings");
-      console.log("  docs-gardener polish --file docs/x.md       准备单文档浅白润色上下文");
-      console.log("  docs-gardener grow                          为空 docsDir 返回 bootstrap 建议包");
+      console.log("  docs-gardener deploy                          部署配置（交互式）");
+      console.log("  docs-gardener mcp                             启动 MCP server");
+      console.log("  docs-gardener scan                            组合扫描 (hard + soft)");
+      console.log("  docs-gardener scan-hard                       仅机械扫描");
+      console.log("  docs-gardener scan-soft                       仅打包 LLM review bundle");
+      console.log("  docs-gardener fix --input findings.json       消费最新 scan + 可选 findings，产生修复计划");
+      console.log("  docs-gardener polish --file docs/x.md         准备单文档浅白润色上下文");
+      console.log("  docs-gardener grow                            为空 docsDir 返回 bootstrap 建议包");
+      console.log("  docs-gardener ack --kinds hard,soft           自动化：将最新 scan 标记为已渲染 (跳过 agentDirective)");
       break;
     }
   }
 }
 
-function parseFileArg(argv) {
+function parsePolishArgs(argv) {
   const fileIndex = argv.indexOf("--file");
+  const force = argv.includes("--force-render-ack");
   return {
     file: fileIndex >= 0 ? argv[fileIndex + 1] : undefined,
+    forceRenderAck: force || undefined,
   };
 }
 
 function parseFixArgs(argv) {
   const inputIndex = argv.indexOf("--input");
   const approved = argv.includes("--approved") || argv.includes("--yes");
+  const force = argv.includes("--force-render-ack");
   const input = inputIndex >= 0 ? readJsonInput(argv[inputIndex + 1]) : {};
   return {
     ...input,
     approved,
+    forceRenderAck: force || input.forceRenderAck || undefined,
   };
 }
 
-function parseScanSoftArgs(argv) {
+function parseScanArgs(argv) {
   const inputIndex = argv.indexOf("--input");
   const categoriesIndex = argv.indexOf("--categories");
   const floorIndex = argv.indexOf("--confidence-floor");
@@ -87,6 +97,17 @@ function parseScanSoftArgs(argv) {
     args.confidenceFloor = Number(argv[floorIndex + 1]);
   }
   return args;
+}
+
+function parseAckArgs(argv) {
+  const kindsIndex = argv.indexOf("--kinds");
+  if (kindsIndex < 0) return {};
+  return {
+    kinds: argv[kindsIndex + 1]
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean),
+  };
 }
 
 function printJson(value) {

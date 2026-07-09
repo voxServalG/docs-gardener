@@ -3,6 +3,8 @@ import path from "path";
 import { extractAll } from "./catalogs.js";
 import { validateArchitecture } from "./architecture.js";
 import { successEnvelope } from "./envelope.js";
+import { buildAgentDirective } from "./agent-directive.js";
+import { hashPayload, markScan, projectKey, getProject } from "./state.js";
 import {
   getAllMdFiles,
   countLines,
@@ -154,31 +156,87 @@ export function scanHard(projectRoot, config) {
     missingCoreRoles: architecture.missingCoreRoles.length,
   };
 
-  return successEnvelope({
+  const data = {
+    catalogs,
+    files,
+    hardErrors,
+    warnings,
+    styleIssues,
+    coverage,
+    architecture,
+    summary,
+  };
+
+  const hash = hashPayload({
+    summary,
+    hardErrors,
+    warnings,
+    coverage: {
+      documented: coverage.documented.map((s) => s.name),
+      undocumented: coverage.undocumented.map((s) => s.name),
+    },
+    architecture: {
+      missingCoreRoles: architecture.missingCoreRoles.map((r) => r.role),
+    },
+    files: files.map((f) => ({ path: f.path, lineCount: f.lineCount })),
+  });
+
+  const projectRootAbs = projectKey(projectRoot);
+  const previous = getProject(projectRoot).hard;
+  const diff = diffHardScans(previous ? previous.envelope.data : null, data);
+  const agentDirective = buildAgentDirective("hard");
+
+  const envelope = successEnvelope({
     tool: "garden-scan-hard",
     mode: "hard",
     phase: "scan-hard",
-    next: hardErrors.length > 0 ? "garden-fix-hard" : "garden-scan-soft",
+    next: "garden-fix",
     summary,
     data: {
-      catalogs,
-      files,
-      hardErrors,
-      warnings,
-      styleIssues,
-      coverage,
-      architecture,
-      summary,
+      ...data,
+      hash,
+      projectRoot: projectRootAbs,
+      previousHash: previous ? previous.hash : null,
+      diff,
+      agentDirective,
     },
     display: {
       title: "Hard scan complete",
-      body: `Scanned ${files.length} Markdown file(s): ${hardErrors.length} hard error(s), ${warnings.length} warning(s), ${styleIssues.length} style issue(s).`,
+      body: `Scanned ${files.length} Markdown file(s): ${hardErrors.length} hard error(s), ${warnings.length} warning(s), ${styleIssues.length} style issue(s). Hash ${hash}.`,
     },
-    hint: hardErrors.length > 0
-      ? "Call garden-fix-hard with the scan result to prepare a hard-error fix plan."
-      : "No hard errors found. Continue with garden-scan-soft to prepare LLM review bundles.",
-    allowedTools: hardErrors.length > 0 ? ["garden-fix-hard"] : ["garden-scan-soft"],
+    hint: "Render this envelope per agentDirective. After rendering, call garden-fix (approved after user review) or run garden-scan-soft to add LLM review evidence.",
+    requires_user: true,
+    stop_here: true,
+    allowedTools: ["garden-scan-soft", "garden-scan", "garden-fix", "garden-polish"],
   });
+
+  const cacheOutcome = markScan(projectRoot, "hard", envelope, hash);
+  if (cacheOutcome.warning) {
+    envelope.warnings = envelope.warnings || [];
+    envelope.warnings.push(cacheOutcome.warning);
+  }
+
+  return envelope;
+}
+
+function diffHardScans(previous, current) {
+  if (!previous) {
+    return { previousHash: null, changed: null, resolved: [], introduced: [] };
+  }
+  const prevKeys = new Set((previous.hardErrors || []).map(hardKey));
+  const currKeys = new Set((current.hardErrors || []).map(hardKey));
+  const introduced = [...currKeys].filter((k) => !prevKeys.has(k));
+  const resolved = [...prevKeys].filter((k) => !currKeys.has(k));
+  return {
+    previousHash: null,
+    changed: introduced.length + resolved.length,
+    resolved,
+    introduced,
+  };
+}
+
+function hardKey(issue) {
+  return `${issue.rule}|${issue.file || ""}|${issue.target || issue.reference || ""}`;
 }
 
 function collectStyleIssues(projectRoot, files) {
@@ -249,16 +307,16 @@ function collectCoverage(projectRoot, config, files) {
 
 function collectSurfaces(config) {
   const surfaces = [
+    ["docs-gardener scan", "cli", "src/index.js"],
     ["docs-gardener scan-hard", "cli", "src/index.js"],
     ["docs-gardener scan-soft", "cli", "src/index.js"],
-    ["docs-gardener fix-hard", "cli", "src/index.js"],
-    ["docs-gardener fix-soft", "cli", "src/index.js"],
+    ["docs-gardener fix", "cli", "src/index.js"],
     ["docs-gardener polish", "cli", "src/index.js"],
     ["docs-gardener grow", "cli", "src/index.js"],
+    ["garden-scan", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-scan-hard", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-scan-soft", "mcpTool", "src/lib/mcp-server.js"],
-    ["garden-fix-hard", "mcpTool", "src/lib/mcp-server.js"],
-    ["garden-fix-soft", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-fix", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-polish", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-grow", "mcpTool", "src/lib/mcp-server.js"],
   ].map(([name, type, source]) => ({ name, type, source }));
