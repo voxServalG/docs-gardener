@@ -14,7 +14,7 @@ The tool references [plain writing guidance](plain-writing-guidance.md). The goa
 - Does not modify fenced code blocks.
 - Does not modify inline code, commands, paths, field names, API names, or error codes.
 - Returns document content, guidance, constraints, and a fixed edit schema.
-- Requires the caller to show proposed edits to the user before applying them through the host workflow.
+- Requires the caller to show proposed edits to the user before applying them through the calling workflow.
 
 ## Edit format
 

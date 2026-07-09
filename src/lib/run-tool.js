@@ -1,14 +1,18 @@
 import fs from "fs";
 import { load } from "./config.js";
-import { scan } from "./scanner.js";
-import { fix } from "./fixer.js";
+import { scanHard } from "./scan-hard.js";
+import { scanSoft } from "./scan-soft.js";
+import { fixHard } from "./fix-hard.js";
+import { fixSoft } from "./fix-soft.js";
 import { polish } from "./polish.js";
 import { grow } from "./grow.js";
 import { errorEnvelope } from "./envelope.js";
 
 const TOOL_ALIASES = {
-  scan: "garden-scan",
-  fix: "garden-fix",
+  "scan-hard": "garden-scan-hard",
+  "scan-soft": "garden-scan-soft",
+  "fix-hard": "garden-fix-hard",
+  "fix-soft": "garden-fix-soft",
   polish: "garden-polish",
   grow: "garden-grow",
 };
@@ -17,11 +21,17 @@ export function runTool(name, args = {}, projectRoot = process.cwd()) {
   const tool = TOOL_ALIASES[name] || name;
   const config = load(projectRoot);
 
-  if (tool === "garden-scan") {
-    return scan(projectRoot, config);
+  if (tool === "garden-scan-hard") {
+    return scanHard(projectRoot, config);
   }
-  if (tool === "garden-fix") {
-    return fix(projectRoot, config, args);
+  if (tool === "garden-scan-soft") {
+    return scanSoft(projectRoot, config, args);
+  }
+  if (tool === "garden-fix-hard") {
+    return fixHard(projectRoot, config, args);
+  }
+  if (tool === "garden-fix-soft") {
+    return fixSoft(projectRoot, config, args);
   }
   if (tool === "garden-polish") {
     return polish(projectRoot, config, args);
@@ -35,7 +45,7 @@ export function runTool(name, args = {}, projectRoot = process.cwd()) {
     mode: "hard",
     phase: "dispatch",
     message: `Unknown tool: ${name}`,
-    hint: "Use garden-scan, garden-fix, garden-polish, or garden-grow.",
+    hint: "Use garden-scan-hard, garden-scan-soft, garden-fix-hard, garden-fix-soft, garden-polish, or garden-grow.",
   });
 }
 

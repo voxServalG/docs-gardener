@@ -3,20 +3,20 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fix } from "../src/lib/fixer.js";
+import { fixHard } from "../src/lib/fix-hard.js";
 import { runTool } from "../src/lib/run-tool.js";
-import { scan } from "../src/lib/scanner.js";
+import { scanHard } from "../src/lib/scan-hard.js";
 
-test("scan returns unified envelope and grouped findings", () => {
+test("scan-hard returns unified envelope and grouped findings", () => {
   const root = makeProject({
     "docs/index.md": "# Docs\n\nSee [Guide](guide.md).\n",
     "docs/guide.md": "# Guide\n\n引用 src/missing.ts 并进行检查。\n",
   });
 
-  const result = scan(root, config());
+  const result = scanHard(root, config());
 
   assert.equal(result.ok, true);
-  assert.equal(result.tool, "garden-scan");
+  assert.equal(result.tool, "garden-scan-hard");
   assert.equal(result.mode, "hard");
   assert.ok(Array.isArray(result.data.hardErrors));
   assert.ok(Array.isArray(result.data.warnings));
@@ -26,18 +26,18 @@ test("scan returns unified envelope and grouped findings", () => {
   assert.equal(result.summary.hardErrors, result.data.hardErrors.length);
 });
 
-test("fix returns approval-required plan for hard errors", () => {
+test("fix-hard returns approval-required plan for hard errors", () => {
   const root = makeProject({
     "docs/index.md": "# Docs\n\nSee [Guide](guide.md).\n",
     "docs/guide.md": "# Guide\n\n引用 src/missing.ts。\n",
   });
 
-  const scanResult = scan(root, config());
-  const result = fix(root, config(), { report: scanResult.data });
+  const scanResult = scanHard(root, config());
+  const result = fixHard(root, config(), { report: scanResult.data });
 
   assert.equal(result.ok, true);
-  assert.equal(result.tool, "garden-fix");
-  assert.equal(result.phase, "fix-plan");
+  assert.equal(result.tool, "garden-fix-hard");
+  assert.equal(result.phase, "fix-hard-plan");
   assert.equal(result.requires_user, true);
   assert.equal(result.stop_here, true);
   assert.ok(result.data.plan.length > 0);
@@ -48,10 +48,10 @@ test("runTool dispatches CLI names to garden tools", () => {
     "docs/index.md": "# Docs\n",
   });
 
-  const result = runTool("scan", {}, root);
+  const result = runTool("scan-hard", {}, root);
 
-  assert.equal(result.tool, "garden-scan");
-  assert.equal(result.phase, "scan");
+  assert.equal(result.tool, "garden-scan-hard");
+  assert.equal(result.phase, "scan-hard");
 });
 
 function config() {

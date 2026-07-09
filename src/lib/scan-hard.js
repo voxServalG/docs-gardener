@@ -14,7 +14,7 @@ import {
   extractMdLinksOnly,
 } from "./utils.js";
 
-export function scan(projectRoot, config) {
+export function scanHard(projectRoot, config) {
   const catalogs = extractAll(projectRoot, config.catalogs || {});
   const docsDir = path.join(projectRoot, config.docsDir);
   const allMdFiles = getAllMdFiles(docsDir);
@@ -155,10 +155,10 @@ export function scan(projectRoot, config) {
   };
 
   return successEnvelope({
-    tool: "garden-scan",
+    tool: "garden-scan-hard",
     mode: "hard",
-    phase: "scan",
-    next: hardErrors.length > 0 ? "garden-fix" : "garden-polish",
+    phase: "scan-hard",
+    next: hardErrors.length > 0 ? "garden-fix-hard" : "garden-scan-soft",
     summary,
     data: {
       catalogs,
@@ -171,13 +171,13 @@ export function scan(projectRoot, config) {
       summary,
     },
     display: {
-      title: "Scan complete",
+      title: "Hard scan complete",
       body: `Scanned ${files.length} Markdown file(s): ${hardErrors.length} hard error(s), ${warnings.length} warning(s), ${styleIssues.length} style issue(s).`,
     },
     hint: hardErrors.length > 0
-      ? "Call garden-fix with the scan result to prepare a hard-error fix plan."
-      : "No hard errors found. Continue with garden-polish for wording and style review.",
-    allowedTools: hardErrors.length > 0 ? ["garden-fix"] : ["garden-polish"],
+      ? "Call garden-fix-hard with the scan result to prepare a hard-error fix plan."
+      : "No hard errors found. Continue with garden-scan-soft to prepare LLM review bundles.",
+    allowedTools: hardErrors.length > 0 ? ["garden-fix-hard"] : ["garden-scan-soft"],
   });
 }
 
@@ -249,12 +249,16 @@ function collectCoverage(projectRoot, config, files) {
 
 function collectSurfaces(config) {
   const surfaces = [
-    ["docs-gardener scan", "cli", "src/index.js"],
-    ["docs-gardener fix", "cli", "src/index.js"],
+    ["docs-gardener scan-hard", "cli", "src/index.js"],
+    ["docs-gardener scan-soft", "cli", "src/index.js"],
+    ["docs-gardener fix-hard", "cli", "src/index.js"],
+    ["docs-gardener fix-soft", "cli", "src/index.js"],
     ["docs-gardener polish", "cli", "src/index.js"],
     ["docs-gardener grow", "cli", "src/index.js"],
-    ["garden-scan", "mcpTool", "src/lib/mcp-server.js"],
-    ["garden-fix", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-scan-hard", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-scan-soft", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-fix-hard", "mcpTool", "src/lib/mcp-server.js"],
+    ["garden-fix-soft", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-polish", "mcpTool", "src/lib/mcp-server.js"],
     ["garden-grow", "mcpTool", "src/lib/mcp-server.js"],
   ].map(([name, type, source]) => ({ name, type, source }));
