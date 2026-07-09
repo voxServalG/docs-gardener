@@ -16,7 +16,7 @@ export function grow(projectRoot, config) {
       tool: "garden-grow",
       mode: "bridge",
       phase: "grow",
-      next: "garden-scan",
+      next: "garden-scan-hard",
       summary: {
         available: false,
         markdownFiles: mdFiles.length,
@@ -30,8 +30,8 @@ export function grow(projectRoot, config) {
         title: "Grow unavailable",
         body: `${docsDir} already contains ${mdFiles.length} Markdown file(s).`,
       },
-      hint: "Use garden-scan for existing documentation systems.",
-      allowedTools: ["garden-scan"],
+      hint: "Use garden-scan-hard for existing documentation systems.",
+      allowedTools: ["garden-scan-hard"],
     });
   }
 
@@ -44,7 +44,7 @@ export function grow(projectRoot, config) {
     tool: "garden-grow",
     mode: "bridge",
     phase: "grow",
-    next: "hy-workflow",
+    next: "garden-scan-hard",
     summary: {
       available: true,
       suggestedFiles: architecture.length,
@@ -80,7 +80,7 @@ export function grow(projectRoot, config) {
       body: `${docsDir} is empty or missing. garden-grow returned a bootstrap package without writing files.`,
     },
     hint: "Use this payload as planning context. Actual writing, approval, verification, commit, and PR lifecycle belong to the calling workflow.",
-    allowedTools: ["garden-scan"],
+    allowedTools: ["garden-scan-hard"],
   });
 }
 
