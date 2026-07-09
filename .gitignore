@@ -4,3 +4,6 @@ node_modules/
 tests/_test_*
 .codex/
 .mcp.json
+codelint.json
+doclint.json
+docs-gardener.json
