@@ -1,5 +1,7 @@
 # garden-scan-soft
 
+上层入口：[garden-scan](scan.md)。
+
 `garden-scan-soft` 打包 LLM review bundle。工具本身不调用 LLM，也不修改任何文件。
 
 ## 输入

@@ -1,5 +1,7 @@
 # garden-scan-hard
 
+上层入口：[garden-scan](scan.md)。
+
 `garden-scan-hard` 是硬校验层。它只做代码可判定的机械检查，不调用任何模型。
 
 ## 行为
