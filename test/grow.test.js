@@ -28,7 +28,7 @@ test("grow is unavailable when docsDir contains Markdown", () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.data.available, false);
-  assert.equal(result.next, "garden-scan-hard");
+  assert.equal(result.next, "garden-scan");
 });
 
 function config() {

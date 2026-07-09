@@ -1,20 +1,20 @@
 # garden-scan-soft
 
-`garden-scan-soft` 是软校验层的准备阶段。它把 docs 与 code 打包成 LLM review bundle，工具本身不调用 LLM，也不修改任何文件。
+`garden-scan-soft` 打包 LLM review bundle。工具本身不调用 LLM，也不修改任何文件。
 
 ## 输入
 
 ```json
 {
   "categories": ["code-doc-consistency", "progressive-disclosure", "prose-claims"],
-  "confidenceFloor": 0.6,
-  "report": "<optional: garden-scan-hard data>"
+  "confidenceFloor": 0.6
 }
 ```
 
 - `categories`：省略等价于三类全出。
 - `confidenceFloor`：低于该值的 finding 必须被 LLM 报为 `warning` 或 `note`。
-- `report`：省略时 `scan-soft` 会自己先跑 `scan-hard`。
+
+若缓存中已有 hard scan 结果，则直接使用；否则先跑一次 hard scan。
 
 ## 三类 bundle
 
@@ -30,17 +30,17 @@
 
 ### progressive-disclosure
 
-整个文档树打包一个 bundle。每个节点只带 `path` / `headings` / `firstParagraph` / `incomingLinks` / `outgoingLinks` / `lineCount`，不带正文，避免 LLM 上下文溢出。
+整个文档树打包一个 bundle。每个节点只带 `path` / `headings` / `firstParagraph` / `incomingLinks` / `outgoingLinks` / `lineCount`，不带正文。
 
 `allowedRules`：`entry-lacks-overview`、`duplicate-info`、`scope-jump`、`orphan-detail`、`dead-end`、`insufficient-context`。
 
 ### prose-claims
 
-按文件切分。每个文件抽取声明性语句（禁止 / 保证 / 前置条件三类）。
+按文件切分。每个文件抽取声明性语句。
 
 `allowedRules`：`claim-unverifiable`、`claim-contradicted`、`claim-overreaches`、`insufficient-context`。
 
-## Finding schema（LLM 必须遵守）
+## Finding schema
 
 ```json
 {
@@ -61,20 +61,24 @@
 }
 ```
 
-`fix-soft` 会强制走一遍 schema 校验：`rule` 必须属于该 bundle 的 `allowedRules`；`replace_text` 类型必须提供 `oldText` / `newText` 且 `oldText` 在目标文件里能命中一次。
+`garden-fix` 会强制走一遍 schema 校验：`rule` 必须属于该 bundle 的 `allowedRules`；`replace_text` 必须提供 `oldText` / `newText` 且 `oldText` 在目标文件里命中一次。
+
+## 硬环节：agentDirective
+
+envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `renderSchema` 硬代码处理并向用户汇报。未渲染时 `garden-fix` / `garden-polish` 拒绝。
 
 ## Envelope
 
 - `tool` = `garden-scan-soft`
 - `mode` = `soft`
 - `phase` = `scan-soft`
-- `next` = `garden-fix-soft`
-- `data.hardSummaryRef`：绑定当前硬扫描摘要 hash；`fix-soft` 收到过期 ref 会拒绝。
+- `next` = `garden-fix`
 - `data.bundles`：待 LLM 消化的 bundle 列表。
+- `data.hardSummaryRef`：绑定当前 hard scan 摘要。
+- `data.hash` / `data.previousHash` / `data.diff`：本次哈希、上次哈希、bundle 变动。
 - `data.findingSchema` / `data.constraints`：LLM 侧硬约束。
-- `requires_user` = `true`，`stop_here` = `true`：调用方必须把 envelope 交给 LLM，再手动调 `garden-fix-soft`。
+- `data.agentDirective`：渲染契约。
 
 ## 位阶
 
-前置：`garden-scan-hard` 已清空 hard errors。
-后置：`garden-fix-soft`。
+可任意时点重跑。若 hard scan 尚未缓存，工具自动补跑一次。

@@ -1,10 +1,28 @@
 import fs from "fs";
 import path from "path";
 import { successEnvelope, errorEnvelope } from "./envelope.js";
+import { getProject, markRendered } from "./state.js";
 
 const GUIDANCE_FILE = "docs/plain-writing-guidance.md";
 
-export function polish(projectRoot, config, { file } = {}) {
+export function polish(projectRoot, config, { file, forceRenderAck } = {}) {
+  const project = getProject(projectRoot);
+  const renderPending = collectRenderPending(project);
+  if (renderPending.length > 0 && forceRenderAck !== true) {
+    return errorEnvelope({
+      tool: "garden-polish",
+      mode: "soft",
+      phase: "polish",
+      param: "agentDirective",
+      message: `最新 scan 尚未按 agentDirective 渲染: ${renderPending.join(", ")}`,
+      hint: "Render the pending scan envelope for the user, then retry garden-polish. Automation may pass forceRenderAck=true.",
+      allowedTools: ["garden-scan", "garden-scan-hard", "garden-scan-soft"],
+    });
+  }
+  if (forceRenderAck === true) {
+    for (const kind of renderPending) markRendered(projectRoot, kind);
+  }
+
   if (!file) {
     return errorEnvelope({
       tool: "garden-polish",
@@ -116,4 +134,11 @@ export function polish(projectRoot, config, { file } = {}) {
     }),
     ...data,
   };
+}
+
+function collectRenderPending(project) {
+  const pending = [];
+  if (project.hard && project.hard.rendered !== true) pending.push("hard");
+  if (project.soft && project.soft.rendered !== true) pending.push("soft");
+  return pending;
 }

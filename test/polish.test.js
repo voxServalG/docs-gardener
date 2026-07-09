@@ -4,8 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { polish } from "../src/lib/polish.js";
+import { resetMemoryFallback } from "../src/lib/state.js";
 
 test("polish returns model context, fixed edit schema, and envelope fields", () => {
+  isolateState();
   const root = makeProject({
     "docs/README.md": "# Guide\n\n请进行检查，并确保用户能够理解。\n",
     "docs/plain-writing-guidance.md": "# 浅白写作指导\n\n优先使用常见、直接、具体的词语。\n",
@@ -33,6 +35,7 @@ test("polish returns model context, fixed edit schema, and envelope fields", () 
 });
 
 test("polish returns constraints instead of hard-coded edits", () => {
+  isolateState();
   const root = makeProject({
     "docs/README.md": [
       "# Guide",
@@ -66,4 +69,10 @@ function makeProject(files) {
     fs.writeFileSync(fullPath, content);
   }
   return root;
+}
+
+function isolateState() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "docs-gardener-state-"));
+  process.env.DOCS_GARDENER_STATE_DIR = dir;
+  resetMemoryFallback();
 }

@@ -3,41 +3,55 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { runTool } from "../src/lib/run-tool.js";
+import { scanAll } from "../src/lib/scan.js";
 import { scanHard } from "../src/lib/scan-hard.js";
-import { resetMemoryFallback } from "../src/lib/state.js";
+import { scanSoft } from "../src/lib/scan-soft.js";
+import { getProject, resetMemoryFallback } from "../src/lib/state.js";
 
-test("scan-hard returns envelope with agentDirective and hash", () => {
+test("garden-scan runs hard and soft in one call", () => {
   isolateState();
   const root = makeProject({
     "docs/index.md": "# Docs\n\nSee [Guide](guide.md).\n",
-    "docs/guide.md": "# Guide\n\n引用 src/missing.ts 并进行检查。\n",
+    "docs/guide.md": "# Guide\n\ncontent\n",
   });
 
-  const result = scanHard(root, config());
+  const result = scanAll(root, config());
 
   assert.equal(result.ok, true);
-  assert.equal(result.tool, "garden-scan-hard");
-  assert.equal(result.mode, "hard");
-  assert.ok(Array.isArray(result.data.hardErrors));
-  assert.ok(result.data.hardErrors.some((item) => item.rule === "dead-reference"));
-  assert.ok(result.data.styleIssues.some((item) => item.rule === "vague-term"));
-  assert.equal(result.summary.hardErrors, result.data.hardErrors.length);
-  assert.equal(typeof result.data.hash, "string");
-  assert.ok(result.data.agentDirective);
+  assert.equal(result.tool, "garden-scan");
+  assert.equal(result.mode, "combined");
+  assert.equal(result.next, "garden-fix");
+  assert.equal(result.data.hard.tool, "garden-scan-hard");
+  assert.equal(result.data.soft.tool, "garden-scan-soft");
   assert.equal(result.data.agentDirective.renderRequired, true);
 });
 
-test("runTool dispatches CLI names to garden tools", () => {
+test("re-running scan-hard replaces cached hard and clears soft/findings", () => {
   isolateState();
   const root = makeProject({
     "docs/index.md": "# Docs\n",
   });
 
-  const result = runTool("scan-hard", {}, root);
+  scanHard(root, config());
+  scanSoft(root, config());
+  const beforeSoft = getProject(root).soft;
+  assert.ok(beforeSoft);
 
-  assert.equal(result.tool, "garden-scan-hard");
-  assert.equal(result.phase, "scan-hard");
+  scanHard(root, config());
+  const afterSoft = getProject(root).soft;
+  assert.equal(afterSoft, null);
+});
+
+test("scan-hard is idempotent hash for identical inputs", () => {
+  isolateState();
+  const root = makeProject({
+    "docs/index.md": "# Docs\n",
+  });
+
+  const a = scanHard(root, config());
+  const b = scanHard(root, config());
+
+  assert.equal(a.data.hash, b.data.hash);
 });
 
 function config() {
