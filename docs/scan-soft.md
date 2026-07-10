@@ -2,7 +2,7 @@
 
 上层入口：[garden-scan](scan.md)。
 
-`garden-scan-soft` 打包 LLM review bundle。工具本身不调用 LLM，也不修改任何文件。
+`garden-scan-soft` 对文档进行语义级软扫描，直接返回已判读完毕的问题清单。工具内部通过 MCP sampling 完成判读，不暴露 bundle / rubric 等中间产物。
 
 ## 输入
 
@@ -14,60 +14,31 @@
 ```
 
 - `categories`：省略等价于三类全出。
-- `confidenceFloor`：低于该值的 finding 必须被 LLM 报为 `warning` 或 `note`。
+- `confidenceFloor`：低于该值的 finding 应降级为 warning / note。
 
 若缓存中已有 hard scan 结果，则直接使用；否则先跑一次 hard scan。
 
-## 三类 bundle
+## 内部判读
 
-### code-doc-consistency
+工具对每个 bundle 调用 MCP sampling（`server.createMessage`），让当前调用 tool 的 agent 作为判读者。判读回传的 findings 经过 `findings-schema.js` 的 schema 校验：
+- `rule` 必须属于该 bundle 的 `allowedRules`。
+- `severity ∈ {error, warning, note}`；`confidence ∈ [0, 1]`。
+- `replace_text` 类型必须提供 `oldText` / `newText` 且 `oldText` 在目标文件命中。
 
-每个 `documented` surface（CLI、MCP tool、config key、catalog item）一个 bundle。
+通过校验的 findings 直接写入 state 缓存；未通过的归入 `rejected`。
 
-- `docExcerpts`：surface 名字命中的文档段落 + 标题路径 + lineRange。
-- `codeExcerpts`：根据 `surface.type` 用正则在 `catalogs.source` 与 `codeDirs` 下定位定义点（最多 3 处）。
-- `notes`：找不到代码切片时明确要求 LLM 输出 `insufficient-context`，不要编造。
+## CLI 限制
 
-`allowedRules`：`drift-behavior`、`drift-signature`、`drift-boundary`、`drift-example`、`insufficient-context`。
-
-### progressive-disclosure
-
-整个文档树打包一个 bundle。每个节点只带 `path` / `headings` / `firstParagraph` / `incomingLinks` / `outgoingLinks` / `lineCount`，不带正文。
-
-`allowedRules`：`entry-lacks-overview`、`duplicate-info`、`scope-jump`、`orphan-detail`、`dead-end`、`insufficient-context`。
-
-### prose-claims
-
-按文件切分。每个文件抽取声明性语句。
-
-`allowedRules`：`claim-unverifiable`、`claim-contradicted`、`claim-overreaches`、`insufficient-context`。
-
-## Finding schema
-
-```json
-{
-  "bundleId": "code-doc-consistency:garden-scan-hard",
-  "rule": "drift-behavior",
-  "severity": "error | warning | note",
-  "confidence": 0.9,
-  "evidence": {
-    "docCitation": "docs/scan-hard.md:12-18",
-    "codeCitation": "src/lib/scan-hard.js:30-52",
-    "oldText": "...",
-    "newText": "..."
-  },
-  "suggestion": {
-    "type": "manual | replace_text",
-    "text": "……"
-  }
-}
-```
-
-`garden-fix` 会强制走一遍 schema 校验：`rule` 必须属于该 bundle 的 `allowedRules`；`replace_text` 必须提供 `oldText` / `newText` 且 `oldText` 在目标文件里命中一次。
+CLI 直接运行时没有 MCP 客户端，sampling 不可用。`scan-soft` 会返回空 findings 数组并在 envelope `warnings` 中标注 `sampling-unavailable`。要在实际环境中使用软扫描，请通过 MCP 客户端调用。
 
 ## 硬环节：agentDirective
 
-envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `renderSchema` 硬代码处理并向用户汇报。未渲染时 `garden-fix` / `garden-polish` 拒绝。
+envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `renderSchema` 硬代码处理并向用户汇报。渲染契约包含：
+- `forbiddenTerms`：禁止在用户可见输出中出现的内部术语。
+- `userRenderTemplate`：自然语言输出模板。
+- `noSoftReviewTemplate`：sampling 不可用时的降级模板。
+
+未渲染时 `garden-fix` / `garden-polish` 拒绝。
 
 ## Envelope
 
@@ -75,12 +46,13 @@ envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `r
 - `mode` = `soft`
 - `phase` = `scan-soft`
 - `next` = `garden-fix`
-- `data.bundles`：待 LLM 消化的 bundle 列表。
-- `data.hardSummaryRef`：绑定当前 hard scan 摘要。
-- `data.hash` / `data.previousHash` / `data.diff`：本次哈希、上次哈希、bundle 变动。
-- `data.findingSchema` / `data.constraints`：LLM 侧硬约束。
-- `data.agentDirective`：渲染契约。
+- `data.findings`：已判读、已校验的问题数组。每条含 `severity`、`rule`、`confidence`、`location`、`message`、`evidence`、`suggestion`。
+- `data.countsBySeverity`：按严重程度分组的计数。
+- `data.rejected`：schema 校验未通过的条目（含 `reason`）。
+- `data.hash` / `data.projectRoot` / `data.agentDirective`。
+- `data.bundles` **不再存在**。
+- `data.sampling`：判读执行统计（总数 / 成功 / 失败 / 耗时）。
 
 ## 位阶
 
-可任意时点重跑。若 hard scan 尚未缓存，工具自动补跑一次。
+可任意时点重跑。若 hard scan 尚未缓存，工具自动补跑一次。findings 直接写入 state，`garden-fix` 无需额外参数即可消费。

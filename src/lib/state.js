@@ -79,13 +79,14 @@ export function updateProject(projectRoot, patch) {
   return { project: next, ...result };
 }
 
-export function markScan(projectRoot, kind, envelope, hash) {
+export function markScan(projectRoot, kind, envelope, hash, extras = {}) {
   const record = {
     hash,
     envelope,
     scannedAt: new Date().toISOString(),
     rendered: false,
     renderedAt: null,
+    ...extras,
   };
   const patch = {};
   patch[kind] = record;
@@ -117,13 +118,19 @@ export function setFindings(projectRoot, findings) {
   if (!project.soft) {
     return { updated: false, reason: "no-soft-scan" };
   }
-  return updateProject(projectRoot, {
-    findings: {
+  const softRecord = { ...project.soft };
+  softRecord.findings = findings.accepted || [];
+  softRecord.rejected = findings.rejected || [];
+  softRecord.findingsSummary = findings.summary || {};
+  const patch = { soft: softRecord };
+  if (findings.accepted) {
+    patch.findings = {
       hardSummaryRef: project.soft.hash,
-      reports: findings,
+      reports: [{ accepted: findings.accepted, rejected: findings.rejected }],
       submittedAt: new Date().toISOString(),
-    },
-  });
+    };
+  }
+  return updateProject(projectRoot, patch);
 }
 
 export function hashPayload(payload) {
