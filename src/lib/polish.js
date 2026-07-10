@@ -127,7 +127,7 @@ export function polish(projectRoot, config, { file, forceRenderAck } = {}) {
         body: `Loaded ${file} and the plain-writing guidance. Use the guidance to decide whether edits are needed, then show any proposed edits to the user before applying changes.`,
         files: [file],
       },
-      hint: "Use the returned document, guidance, constraints, and editSchema to make model-based polish judgments. Do not invent fields. Apply only user-accepted edits through the calling workflow.",
+      hint: "Use the returned document, guidance, constraints, and editSchema to make model-based polish judgments. Do not invent fields. Apply only user-accepted edits through the calling workflow. No soft findings parameter needed - scan-soft handles judging internally.",
       requires_user: true,
       stop_here: true,
       allowedTools: [],

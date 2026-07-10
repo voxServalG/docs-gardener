@@ -36,8 +36,8 @@ docs-gardener grow
 |------|------|------|
 | `garden-scan` | `combined` | 依次运行 hard + soft，返回组合 envelope |
 | `garden-scan-hard` | `hard` | 只做机械扫描 |
-| `garden-scan-soft` | `soft` | 只打包 LLM review bundle |
-| `garden-fix` | `combined` | 消费缓存中最新 hard + soft，产出 approval-gated 修复计划 |
+| `garden-scan-soft` | `soft` | 通过 MCP sampling 在工具内部完成语义判读，直接返回已校验的问题清单 |
+| `garden-fix` | `combined` | 消费缓存中最新 hard + soft findings，产出 approval-gated 修复计划 |
 | `garden-polish` | `soft` | 单文档浅白润色上下文 |
 | `garden-grow` | `bridge` | 当 `docsDir` 不存在或不含 Markdown 时的 bootstrap |
 
@@ -58,7 +58,7 @@ scan-hard / scan-soft (可任意时点、任意顺序重跑)
 
 ## Agent directive 硬环节
 
-每个 `garden-scan-*` envelope 都带 `data.agentDirective`：`renderRequired: true` + `processingContract` + `renderSchema`。agent 必须以硬代码路径按 `renderSchema` 处理，逐字汇报计数 / 具体项 / 差异 / 待决策项。未渲染时，`garden-fix` 与 `garden-polish` 会直接拒绝，返回引导。
+每个 `garden-scan-*` envelope 都带 `data.agentDirective`：`renderRequired: true` + `processingContract` + `renderSchema` + `forbiddenTerms` + `userRenderTemplate`。agent 必须以硬代码路径按 `renderSchema` 处理，用自然语言汇报发现的问题。`forbiddenTerms`（bundle、rubric、pending、finding、prose-claims、progressive-disclosure、code-doc-consistency）禁止出现在用户可见输出中。未渲染时，`garden-fix` 与 `garden-polish` 会直接拒绝，返回引导。
 
 自动化场景可在 `garden-fix` 里传 `forceRenderAck: true` 显式跳过，但这条通道仅供编程自动化使用。
 

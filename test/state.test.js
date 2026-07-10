@@ -7,7 +7,6 @@ import {
   getProject,
   markScan,
   markRendered,
-  setFindings,
   resetMemoryFallback,
   stateFilePath,
 } from "../src/lib/state.js";
@@ -44,32 +43,15 @@ test("new hard scan resets soft and findings", () => {
   isolate();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dg-project-"));
   markScan(root, "hard", { data: {} }, "h1");
-  markScan(root, "soft", { data: {} }, "s1");
-  setFindings(root, [{ bundleId: "x", findings: [] }]);
+  markScan(root, "soft", { data: {} }, "s1", { findings: [{ rule: "test" }], rejected: [] });
   let project = getProject(root);
   assert.equal(project.soft.hash, "s1");
-  assert.ok(project.findings);
+  assert.ok(project.soft.findings);
 
   markScan(root, "hard", { data: {} }, "h2");
   project = getProject(root);
   assert.equal(project.hard.hash, "h2");
   assert.equal(project.soft, null);
-  assert.equal(project.findings, null);
-});
-
-test("setFindings binds to current soft hash", () => {
-  isolate();
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dg-project-"));
-  const missing = setFindings(root, [{ bundleId: "x", findings: [] }]);
-  assert.equal(missing.updated, false);
-
-  markScan(root, "hard", { data: {} }, "h1");
-  markScan(root, "soft", { data: {} }, "s1");
-  setFindings(root, [{ bundleId: "b1", findings: [{ rule: "note" }] }]);
-
-  const project = getProject(root);
-  assert.equal(project.findings.hardSummaryRef, "s1");
-  assert.equal(project.findings.reports[0].bundleId, "b1");
 });
 
 test("state persists across separate calls in the same directory", () => {
@@ -80,4 +62,22 @@ test("state persists across separate calls in the same directory", () => {
   resetMemoryFallback();
   const later = getProject(root);
   assert.equal(later.hard.hash, "keep");
+});
+
+test("soft scan record stores findings and rejected", () => {
+  isolate();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dg-project-"));
+  markScan(root, "hard", { data: {} }, "h1");
+  markScan(root, "soft", { data: {} }, "s1", {
+    findings: [{ rule: "claim-overreaches", severity: "warning" }],
+    rejected: [{ bundleId: "x", reason: "bad" }],
+    summary: { countsBySeverity: { error: 0, warning: 1, note: 0, total: 1 } },
+  });
+
+  const project = getProject(root);
+  assert.ok(project.soft.findings);
+  assert.equal(project.soft.findings.length, 1);
+  assert.ok(project.soft.rejected);
+  assert.equal(project.soft.rejected.length, 1);
+  assert.ok(project.soft.summary);
 });

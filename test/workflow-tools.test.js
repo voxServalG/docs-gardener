@@ -26,15 +26,16 @@ test("scan-hard returns envelope with agentDirective and hash", () => {
   assert.equal(typeof result.data.hash, "string");
   assert.ok(result.data.agentDirective);
   assert.equal(result.data.agentDirective.renderRequired, true);
+  assert.ok(result.data.agentDirective.forbiddenTerms);
 });
 
-test("runTool dispatches CLI names to garden tools", () => {
+test("runTool dispatches CLI names to garden tools", async () => {
   isolateState();
   const root = makeProject({
     "docs/index.md": "# Docs\n",
   });
 
-  const result = runTool("scan-hard", {}, root);
+  const result = await runTool("scan-hard", {}, root, null);
 
   assert.equal(result.tool, "garden-scan-hard");
   assert.equal(result.phase, "scan-hard");
