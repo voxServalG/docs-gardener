@@ -122,10 +122,12 @@ export function setFindings(projectRoot, findings) {
   softRecord.findings = findings.accepted || [];
   softRecord.rejected = findings.rejected || [];
   softRecord.findingsSummary = findings.summary || {};
+  softRecord.rendered = true;
+  softRecord.renderedAt = softRecord.renderedAt || new Date().toISOString();
   const patch = { soft: softRecord };
   if (findings.accepted) {
     patch.findings = {
-      hardSummaryRef: project.soft.hash,
+      softSummaryRef: project.soft.hash,
       reports: [{ accepted: findings.accepted, rejected: findings.rejected }],
       submittedAt: new Date().toISOString(),
     };

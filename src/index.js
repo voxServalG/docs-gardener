@@ -20,27 +20,27 @@ async function main() {
     }
     case "scan-hard":
     case "grow": {
-      printJson(await runTool(command, {}, projectRoot, null));
+      printJson(runTool(command, {}, projectRoot));
       break;
     }
     case "scan":
     case "scan-soft": {
       const args = parseScanArgs(process.argv.slice(3));
-      printJson(await runTool(command, args, projectRoot, null));
+      printJson(runTool(command, args, projectRoot));
       break;
     }
     case "polish": {
-      printJson(await runTool(command, parsePolishArgs(process.argv.slice(3)), projectRoot, null));
+      printJson(runTool(command, parsePolishArgs(process.argv.slice(3)), projectRoot));
       break;
     }
     case "fix": {
       const args = parseFixArgs(process.argv.slice(3));
-      printJson(await runTool(command, args, projectRoot, null));
+      printJson(runTool(command, args, projectRoot));
       break;
     }
     case "ack": {
       const args = parseAckArgs(process.argv.slice(3));
-      printJson(await runTool(command, args, projectRoot, null));
+      printJson(runTool(command, args, projectRoot));
       break;
     }
     default: {
@@ -50,7 +50,7 @@ async function main() {
       console.log("  docs-gardener mcp                             启动 MCP server");
       console.log("  docs-gardener scan                            组合扫描 (hard + soft)");
       console.log("  docs-gardener scan-hard                       仅机械扫描");
-      console.log("  docs-gardener scan-soft                       仅软扫描（需 MCP 环境，CLI 无 sampling）");
+      console.log("  docs-gardener scan-soft                       准备软扫描证据与 agent 判读契约");
       console.log("  docs-gardener fix --approved                  消费最新 scan，产生修复计划");
       console.log("  docs-gardener polish --file docs/x.md         准备单文档浅白润色上下文");
       console.log("  docs-gardener grow                            为空 docsDir 返回 bootstrap 建议包");
@@ -73,9 +73,15 @@ function parseFixArgs(argv) {
   const approved = argv.includes("--approved") || argv.includes("--yes");
   const force = argv.includes("--force-render-ack");
   return {
+    ...readJsonInput(inputFile(argv)),
     approved,
     forceRenderAck: force || undefined,
   };
+}
+
+function inputFile(argv) {
+  const inputIndex = argv.indexOf("--input");
+  return inputIndex >= 0 ? argv[inputIndex + 1] : null;
 }
 
 function parseScanArgs(argv) {

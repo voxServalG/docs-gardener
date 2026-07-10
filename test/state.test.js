@@ -7,6 +7,7 @@ import {
   getProject,
   markScan,
   markRendered,
+  setFindings,
   resetMemoryFallback,
   stateFilePath,
 } from "../src/lib/state.js";
@@ -64,20 +65,23 @@ test("state persists across separate calls in the same directory", () => {
   assert.equal(later.hard.hash, "keep");
 });
 
-test("soft scan record stores findings and rejected", () => {
+test("soft scan stores evidence before findings are submitted", () => {
   isolate();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dg-project-"));
   markScan(root, "hard", { data: {} }, "h1");
-  markScan(root, "soft", { data: {} }, "s1", {
-    findings: [{ rule: "claim-overreaches", severity: "warning" }],
-    rejected: [{ bundleId: "x", reason: "bad" }],
-    summary: { countsBySeverity: { error: 0, warning: 1, note: 0, total: 1 } },
-  });
+  const bundles = [{ id: "soft-1" }];
+  markScan(root, "soft", { data: { bundles } }, "s1");
 
-  const project = getProject(root);
-  assert.ok(project.soft.findings);
+  let project = getProject(root);
+  assert.deepEqual(project.soft.envelope.data.bundles, bundles);
+  assert.equal(project.soft.findings, undefined);
+
+  setFindings(root, {
+    accepted: [{ rule: "claim-overreaches", severity: "warning" }],
+    rejected: [{ bundleId: "x", reason: "bad" }],
+  });
+  project = getProject(root);
   assert.equal(project.soft.findings.length, 1);
-  assert.ok(project.soft.rejected);
   assert.equal(project.soft.rejected.length, 1);
-  assert.ok(project.soft.summary);
+  assert.equal(project.soft.rendered, true);
 });

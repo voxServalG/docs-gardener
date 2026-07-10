@@ -2,7 +2,7 @@
 
 上层入口：[garden-scan](scan.md)。
 
-`garden-scan-soft` 对文档进行语义级软扫描，直接返回已判读完毕的问题清单。工具内部通过 MCP sampling 完成判读，不暴露 bundle / rubric 等中间产物。
+`garden-scan-soft` 准备语义级审查所需的结构化证据。调用 agent 在正常响应周期内逐项判读，向用户输出自然语言结果，再把结构化结果回填给 `garden-fix`。
 
 ## 输入
 
@@ -18,25 +18,23 @@
 
 若缓存中已有 hard scan 结果，则直接使用；否则先跑一次 hard scan。
 
-## 内部判读
+## Agent 判读
 
-工具对每个 bundle 调用 MCP sampling（`server.createMessage`），让当前调用 tool 的 agent 作为判读者。判读回传的 findings 经过 `findings-schema.js` 的 schema 校验：
+envelope 的 `data.bundles` 包含按类别组织的证据，`data.findingSchema` 与 `data.constraints` 约束输出。agent 必须审查每一组证据，并构造 `{ bundleId, findings }` 数组。`garden-fix` 使用 `findings-schema.js` 校验每条结果：
 - `rule` 必须属于该 bundle 的 `allowedRules`。
 - `severity ∈ {error, warning, note}`；`confidence ∈ [0, 1]`。
 - `replace_text` 类型必须提供 `oldText` / `newText` 且 `oldText` 在目标文件命中。
 
-通过校验的 findings 直接写入 state 缓存；未通过的归入 `rejected`。
+通过校验的结果写入 state 缓存；未通过的归入 `rejected`。
 
-## CLI 限制
-
-CLI 直接运行时没有 MCP 客户端，sampling 不可用。`scan-soft` 会返回空 findings 数组并在 envelope `warnings` 中标注 `sampling-unavailable`。要在实际环境中使用软扫描，请通过 MCP 客户端调用。
+CLI 与 MCP 返回相同的证据契约，不依赖 MCP sampling 能力。
 
 ## 硬环节：agentDirective
 
 envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `renderSchema` 硬代码处理并向用户汇报。渲染契约包含：
 - `forbiddenTerms`：禁止在用户可见输出中出现的内部术语。
 - `userRenderTemplate`：自然语言输出模板。
-- `noSoftReviewTemplate`：sampling 不可用时的降级模板。
+- `agentSubmission`：回填 `garden-fix` 所需的结构。
 
 未渲染时 `garden-fix` / `garden-polish` 拒绝。
 
@@ -46,13 +44,10 @@ envelope 携带 `data.agentDirective.renderRequired = true`，agent 必须按 `r
 - `mode` = `soft`
 - `phase` = `scan-soft`
 - `next` = `garden-fix`
-- `data.findings`：已判读、已校验的问题数组。每条含 `severity`、`rule`、`confidence`、`location`、`message`、`evidence`、`suggestion`。
-- `data.countsBySeverity`：按严重程度分组的计数。
-- `data.rejected`：schema 校验未通过的条目（含 `reason`）。
+- `data.bundles`：结构化证据组。
+- `data.findingSchema` / `data.constraints`：agent 输出契约与审查约束。
 - `data.hash` / `data.projectRoot` / `data.agentDirective`。
-- `data.bundles` **不再存在**。
-- `data.sampling`：判读执行统计（总数 / 成功 / 失败 / 耗时）。
 
 ## 位阶
 
-可任意时点重跑。若 hard scan 尚未缓存，工具自动补跑一次。findings 直接写入 state，`garden-fix` 无需额外参数即可消费。
+可任意时点重跑。若 hard scan 尚未缓存，工具自动补跑一次。证据直接写入 state；agent 判读后以 `findings` 参数调用 `garden-fix`。

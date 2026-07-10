@@ -19,18 +19,18 @@ const TOOL_ALIASES = {
   ack: "garden-ack",
 };
 
-export async function runTool(name, args = {}, projectRoot = process.cwd(), sampler = null) {
+export function runTool(name, args = {}, projectRoot = process.cwd()) {
   const tool = TOOL_ALIASES[name] || name;
   const config = load(projectRoot);
 
   if (tool === "garden-scan") {
-    return await scanAll(projectRoot, config, args, sampler);
+    return scanAll(projectRoot, config, args);
   }
   if (tool === "garden-scan-hard") {
     return scanHard(projectRoot, config);
   }
   if (tool === "garden-scan-soft") {
-    return await scanSoft(projectRoot, config, args, sampler);
+    return scanSoft(projectRoot, config, args);
   }
   if (tool === "garden-fix") {
     return fix(projectRoot, config, args);

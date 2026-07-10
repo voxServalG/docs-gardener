@@ -1,4 +1,4 @@
-export const DIRECTIVE_VERSION = 2;
+export const DIRECTIVE_VERSION = 3;
 
 export const FORBIDDEN_TERMS = [
   "bundle",
@@ -12,12 +12,14 @@ export const FORBIDDEN_TERMS = [
 
 export const PROCESSING_CONTRACT = [
   "Consume this envelope with hard code, not free-form paraphrase.",
-  "Render the findings as a natural-language problem list the user can act on.",
+  "For a soft scan, inspect every evidence group in data.bundles and judge it against data.findingSchema and data.constraints.",
+  "Collect each judgment as { bundleId, findings } and pass the complete array to garden-fix after rendering.",
+  "Render accepted issues as a natural-language problem list the user can act on.",
   "Do NOT use these internal terms in user-facing output: " + FORBIDDEN_TERMS.join(", ") + ".",
   "Group by severity (error first, then warning, then note).",
   "For each item, state: where (file:line range), what is wrong, and what to do.",
   "If there are zero findings, say so explicitly — do not leave the user guessing.",
-  "After listing, state the next step: call garden-fix to apply fixes, or garden-polish for prose review.",
+  "After listing, call garden-fix with the structured judgments; do not expose internal evidence terminology to the user.",
 ];
 
 export const USER_RENDER_TEMPLATE = [
@@ -37,13 +39,6 @@ export const USER_RENDER_TEMPLATE = [
   "下一步：调用 garden-fix 修复，或 garden-polish 做文档润色。",
 ].join("\n");
 
-export const NO_SOFT_REVIEW_TEMPLATE = [
-  "## 软扫描结果",
-  "",
-  "本次未执行软扫描（当前环境不支持 MCP sampling）。",
-  "仅硬扫描结果可用。请调用 garden-fix 处理硬错误。",
-].join("\n");
-
 export const SOFT_RENDER_SCHEMA = {
   version: DIRECTIVE_VERSION,
   kind: "soft-scan",
@@ -55,7 +50,11 @@ export const SOFT_RENDER_SCHEMA = {
   ],
   forbiddenTerms: FORBIDDEN_TERMS,
   userRenderTemplate: USER_RENDER_TEMPLATE,
-  noSoftReviewTemplate: NO_SOFT_REVIEW_TEMPLATE,
+  agentSubmission: {
+    tool: "garden-fix",
+    field: "findings",
+    item: { fields: ["bundleId", "findings"] },
+  },
 };
 
 export const HARD_RENDER_SCHEMA = {
@@ -99,7 +98,7 @@ export function buildAgentDirective(kind) {
     forbiddenTerms: FORBIDDEN_TERMS,
     userRenderTemplate: schema.userRenderTemplate || USER_RENDER_TEMPLATE,
     acknowledge: {
-      via: "call garden-fix / garden-polish only after rendering; pass forceRenderAck=true only for programmatic automation that has bypassed rendering",
+      via: "call garden-fix with findings after rendering, or garden-polish after rendering; pass forceRenderAck=true only for programmatic automation",
       cliBypass: "docs-gardener fix --force-render-ack (for automation only)",
     },
   };

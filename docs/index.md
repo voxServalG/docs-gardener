@@ -30,11 +30,11 @@ scan-hard  /  scan-soft (either can be re-run at any time)
 
 `garden-scan-hard` reports code-decidable hard errors, warnings, style hits, coverage, and architecture. It writes state to `~/.docs-gardener/state.json` (override with `DOCS_GARDENER_STATE_DIR`).
 
-`garden-scan-soft` performs semantic review of documentation via MCP sampling. It calls the agent that invoked the tool to judge code-doc consistency, progressive disclosure, and prose claims, then returns validated findings directly. The envelope does not expose bundles, rubrics, or other intermediates.
+`garden-scan-soft` prepares structured evidence for semantic documentation review. The calling agent judges that evidence during its normal response cycle, reports actionable issues to the user in natural language, and submits structured results to `garden-fix` for validation and caching.
 
 `garden-scan` runs both layers and returns a combined envelope; use it when the user asks for a scan without specifying the layer.
 
-`garden-fix` consumes the latest hard and soft scans from the cache and produces an approval-gated edit plan. It refuses to run if the latest scan has not been rendered per its `agentDirective`.
+`garden-fix` accepts the agent's structured soft-review results, validates them against the latest cached evidence, and produces an approval-gated edit plan. It refuses ordinary calls if the latest scan has not been rendered per its `agentDirective`.
 
 `garden-polish` prepares single-document plain-writing context. It does not fix links, split documents, or modify files.
 
@@ -46,4 +46,4 @@ Every `garden-scan-*` envelope carries `data.agentDirective` with `renderRequire
 
 ## Consumer model
 
-docs-gardener runs as an independent MCP server and CLI. Parallel projects can consume the JSON envelope directly; no external orchestrator is assumed. Soft scan requires an MCP client that supports sampling; CLI-only invocations return empty findings with a warning.
+docs-gardener runs as an independent MCP server and CLI. Parallel projects can consume the JSON envelope directly; no external orchestrator or MCP sampling support is required. CLI and MCP calls return the same soft-review evidence contract.
