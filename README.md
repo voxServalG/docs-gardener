@@ -18,7 +18,7 @@ docs-gardener mcp
 
 docs-gardener scan                    # 组合扫描 (hard + soft)
 docs-gardener scan-hard               # 仅机械扫描
-docs-gardener scan-soft               # 仅打包 LLM review bundle
+docs-gardener scan-soft               # 准备语义审查证据与判读契约
 docs-gardener fix --input findings.json --approved
 docs-gardener polish --file docs/README.md
 docs-gardener grow
@@ -36,8 +36,8 @@ docs-gardener grow
 |------|------|------|
 | `garden-scan` | `combined` | 依次运行 hard + soft，返回组合 envelope |
 | `garden-scan-hard` | `hard` | 只做机械扫描 |
-| `garden-scan-soft` | `soft` | 通过 MCP sampling 在工具内部完成语义判读，直接返回已校验的问题清单 |
-| `garden-fix` | `combined` | 消费缓存中最新 hard + soft findings，产出 approval-gated 修复计划 |
+| `garden-scan-soft` | `soft` | 返回结构化证据与判读契约，由调用 agent 完成语义审查 |
+| `garden-fix` | `combined` | 校验并缓存 agent 回填结果，产出 approval-gated 修复计划 |
 | `garden-polish` | `soft` | 单文档浅白润色上下文 |
 | `garden-grow` | `bridge` | 当 `docsDir` 不存在或不含 Markdown 时的 bootstrap |
 
@@ -58,13 +58,13 @@ scan-hard / scan-soft (可任意时点、任意顺序重跑)
 
 ## Agent directive 硬环节
 
-每个 `garden-scan-*` envelope 都带 `data.agentDirective`：`renderRequired: true` + `processingContract` + `renderSchema` + `forbiddenTerms` + `userRenderTemplate`。agent 必须以硬代码路径按 `renderSchema` 处理，用自然语言汇报发现的问题。`forbiddenTerms`（bundle、rubric、pending、finding、prose-claims、progressive-disclosure、code-doc-consistency）禁止出现在用户可见输出中。未渲染时，`garden-fix` 与 `garden-polish` 会直接拒绝，返回引导。
+每个 `garden-scan-*` envelope 都带 `data.agentDirective`：`renderRequired: true` + `processingContract` + `renderSchema` + `forbiddenTerms` + `userRenderTemplate`。agent 必须按契约审查 soft 证据，用自然语言汇报问题，再把结构化结果传给 `garden-fix`。内部术语禁止出现在用户可见输出中。未渲染时，`garden-fix` 与 `garden-polish` 会拒绝并返回引导。
 
 自动化场景可在 `garden-fix` 里传 `forceRenderAck: true` 显式跳过，但这条通道仅供编程自动化使用。
 
 ## 状态缓存
 
-状态写到 `~/.docs-gardener/state.json`（可通过 `DOCS_GARDENER_STATE_DIR` 覆盖）。按 `projectRoot` 绝对路径分 key，跨进程持久。若不可写，工具自动降级为进程内存并在 envelope 里附 warning。
+状态写到 `~/.docs-gardener/state.json`（可通过 `DOCS_GARDENER_STATE_DIR` 覆盖）。按 `projectRoot` 绝对路径分 key，跨进程持久。soft 证据在扫描时缓存，agent 回填的 accepted/rejected 结果在 `garden-fix` 时缓存。若不可写，工具自动降级为进程内存并在 envelope 里附 warning。
 
 ## JSON envelope
 

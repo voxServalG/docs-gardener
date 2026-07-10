@@ -6,19 +6,18 @@
 
 - `approved`：`true` 时执行 `replace_text` 类项；否则只返回计划。
 - `forceRenderAck`：`true` 时跳过 agentDirective 渲染检查（**仅供自动化**；日常调用应先按 directive 渲染再调 fix）。
-
-注意：`findings` 参数已废弃。软扫描的 findings 在 `garden-scan-soft` 内部通过 MCP sampling 完成判读并直接写入 state 缓存。
+- `findings`：agent 审查最新 soft scan 后提交的 `{ bundleId, findings }` 数组。首次调用必须提供，显式空数组表示已审查且没有问题。
 
 ## 前置检查
 
 1. 缓存里必须至少有一份 scan（hard 或 soft）。
-2. 最新的 hard / soft scan 都必须已经按 agentDirective 渲染。未渲染时拒绝并回引导到 render 或使用 `forceRenderAck`。
+2. agent 必须先按 `agentDirective` 向用户展示结果。携带 `findings` 的调用确认该步骤已完成；不携带时，未渲染的 scan 会被拒绝。
 
 ## 计划构成
 
 - `hardPlan`：从最新 hard scan 的 `hardErrors` 派生的 `manual` 修复项（`dead-link` / `dead-reference` / `missing-docs-dir` / `has-reference` 等）。
-- `softPlan`：从 state 缓存中最新 soft scan 的 findings 派生的 `manual` 或 `replace_text` 项。
-- `rejected`：在 scan-soft 阶段已标记为 schema 校验未通过的项（来自 state.soft.rejected）。
+- `softPlan`：从 agent 回填且通过校验的结果派生的 `manual` 或 `replace_text` 项。
+- `rejected`：`garden-fix` schema 校验未通过的条目（来自 state.soft.rejected）。
 
 ## Envelope
 

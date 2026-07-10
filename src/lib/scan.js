@@ -4,9 +4,9 @@ import { successEnvelope } from "./envelope.js";
 import { buildAgentDirective } from "./agent-directive.js";
 import { projectKey } from "./state.js";
 
-export async function scanAll(projectRoot, config, args = {}, sampler = null) {
+export function scanAll(projectRoot, config, args = {}) {
   const hardEnvelope = scanHard(projectRoot, config);
-  const softEnvelope = await scanSoft(projectRoot, config, args, sampler);
+  const softEnvelope = scanSoft(projectRoot, config, args);
   const agentDirective = buildAgentDirective("combined");
 
   const summary = {
@@ -28,9 +28,9 @@ export async function scanAll(projectRoot, config, args = {}, sampler = null) {
     },
     display: {
       title: "Combined scan complete",
-      body: `Hard: ${hardEnvelope.summary.hardErrors} error(s), ${hardEnvelope.summary.warnings} warning(s), ${hardEnvelope.summary.styleIssues} style issue(s). Soft: ${softEnvelope.summary.findings} finding(s).`,
+      body: `Hard: ${hardEnvelope.summary.hardErrors} error(s), ${hardEnvelope.summary.warnings} warning(s), ${hardEnvelope.summary.styleIssues} style issue(s). Soft: ${softEnvelope.summary.bundles} evidence group(s).`,
     },
-    hint: "Render both hard and soft envelopes per their agentDirectives, then call garden-fix to apply fixes.",
+    hint: "Render both hard and soft envelopes per their agentDirectives. For soft: judge bundles, produce findings, then call garden-fix with { findings }.",
     requires_user: true,
     stop_here: true,
     allowedTools: ["garden-fix", "garden-scan-hard", "garden-scan-soft", "garden-scan"],

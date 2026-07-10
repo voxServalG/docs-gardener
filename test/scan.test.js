@@ -7,17 +7,15 @@ import { scanAll } from "../src/lib/scan.js";
 import { scanHard } from "../src/lib/scan-hard.js";
 import { scanSoft } from "../src/lib/scan-soft.js";
 import { getProject, resetMemoryFallback } from "../src/lib/state.js";
-import { createMockSampler } from "../src/lib/sampling.js";
 
-test("garden-scan runs hard and soft in one call with sampler", async () => {
+test("garden-scan runs hard and prepares soft evidence in one call", () => {
   isolateState();
   const root = makeProject({
     "docs/index.md": "# Docs\n\nSee [Guide](guide.md).\n",
     "docs/guide.md": "# Guide\n\ncontent\n",
   });
 
-  const mockSampler = createMockSampler(async () => ({ accepted: [], rejected: [] }));
-  const result = await scanAll(root, config(), {}, mockSampler);
+  const result = scanAll(root, config());
 
   assert.equal(result.ok, true);
   assert.equal(result.tool, "garden-scan");
@@ -25,8 +23,8 @@ test("garden-scan runs hard and soft in one call with sampler", async () => {
   assert.equal(result.next, "garden-fix");
   assert.equal(result.data.hard.tool, "garden-scan-hard");
   assert.equal(result.data.soft.tool, "garden-scan-soft");
-  assert.ok(result.data.soft.data.findings);
-  assert.equal(result.data.soft.data.bundles, undefined);
+  assert.ok(result.data.soft.data.bundles);
+  assert.equal(result.data.soft.data.findings, undefined);
   assert.equal(result.data.agentDirective.renderRequired, true);
 });
 

@@ -1,11 +1,11 @@
 # garden-scan
 
-`garden-scan` 是组合入口。它先跑 `garden-scan-hard`，再跑 `garden-scan-soft`（含内部 sampling 判读），返回一个组合 envelope。
+`garden-scan` 是组合入口。它先跑 `garden-scan-hard`，再跑 `garden-scan-soft`，返回机械结果、语义审查证据和 agent 判读契约。
 
 ## 行为
 
 - 依次执行 hard 与 soft 两层，两层的完整 envelope 都放在 `data.hard` 与 `data.soft` 里。
-- soft 层在工具内部通过 MCP sampling 完成语义判读，返回的是已校验的问题清单，不是中间态 bundle。
+- soft 层返回结构化证据、结果 schema 和约束；调用 agent 在正常响应周期内完成判读。
 - 写状态缓存 `~/.docs-gardener/state.json`（若不可写，回退内存并附 warning）。
 - 缓存位置可通过 `DOCS_GARDENER_STATE_DIR` 环境变量覆盖。
 - 组合 envelope 携带 `data.agentDirective`：这是 **硬环节**，调用方 agent 必须以硬代码按 `renderSchema` 处理，用自然语言向用户汇报。
@@ -17,7 +17,7 @@
 - `mode` = `combined`
 - `phase` = `scan`
 - `next` = `garden-fix`
-- `data.hard` / `data.soft`：完整子 envelope。soft 子 envelope 的 `data.findings` 已是判读结果。
+- `data.hard` / `data.soft`：完整子 envelope。soft 子 envelope 的 `data.bundles` 是待 agent 判读的结构化证据。
 - `data.agentDirective`：`{ renderRequired, processingContract, renderSchema, forbiddenTerms, userRenderTemplate }`。
 
 ## Scan 可重入
