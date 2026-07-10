@@ -1,7 +1,8 @@
 import { validateFinding } from "./findings-schema.js";
 
 export function createSampler(mcpServer) {
-  if (!mcpServer || typeof mcpServer.createMessage !== "function") {
+  const inner = mcpServer && mcpServer.server ? mcpServer.server : mcpServer;
+  if (!inner || typeof inner.createMessage !== "function") {
     return { available: false, reason: "no-mcp-server" };
   }
 
@@ -9,7 +10,7 @@ export function createSampler(mcpServer) {
     available: true,
     async judge(bundle, projectRoot, confidenceFloor) {
       const { systemPrompt, userPrompt } = buildPrompt(bundle, confidenceFloor);
-      const result = await mcpServer.createMessage({
+      const result = await inner.createMessage({
         messages: [
           {
             role: "user",
