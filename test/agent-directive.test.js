@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAgentDirective, PROCESSING_CONTRACT, FORBIDDEN_TERMS, SOFT_RENDER_SCHEMA, HARD_RENDER_SCHEMA, COMBINED_RENDER_SCHEMA, USER_RENDER_TEMPLATE, NO_SOFT_REVIEW_TEMPLATE } from "../src/lib/agent-directive.js";
+import { buildAgentDirective, PROCESSING_CONTRACT, FORBIDDEN_TERMS, SOFT_RENDER_SCHEMA, HARD_RENDER_SCHEMA, COMBINED_RENDER_SCHEMA, USER_RENDER_TEMPLATE } from "../src/lib/agent-directive.js";
 
 test("buildAgentDirective returns render contract with schema per kind", () => {
   for (const kind of ["hard", "soft", "combined"]) {
@@ -20,6 +20,7 @@ test("PROCESSING_CONTRACT enforces hard-code consumption and natural language", 
   assert.match(joined, /hard code/);
   assert.match(joined, /natural-language/);
   assert.match(joined, /do not use these internal terms/);
+  assert.match(joined, /garden-fix/);
 });
 
 test("FORBIDDEN_TERMS includes bundle, rubric, pending, prose-claims, progressive-disclosure", () => {
@@ -35,7 +36,7 @@ test("soft render schema requires countsBySeverity, findings, decisions", () => 
   }
   assert.ok(SOFT_RENDER_SCHEMA.forbiddenTerms);
   assert.ok(SOFT_RENDER_SCHEMA.userRenderTemplate);
-  assert.ok(SOFT_RENDER_SCHEMA.noSoftReviewTemplate);
+  assert.equal(SOFT_RENDER_SCHEMA.agentSubmission.field, "findings");
 });
 
 test("hard render schema requires counts, hardErrors, decisions", () => {
@@ -62,9 +63,4 @@ test("USER_RENDER_TEMPLATE uses natural language, not internal terms", () => {
   for (const term of FORBIDDEN_TERMS) {
     assert.ok(!USER_RENDER_TEMPLATE.toLowerCase().includes(term.toLowerCase()), `template leaks term: ${term}`);
   }
-});
-
-test("NO_SOFT_REVIEW_TEMPLATE is user-friendly", () => {
-  assert.match(NO_SOFT_REVIEW_TEMPLATE, /未执行软扫描/);
-  assert.match(NO_SOFT_REVIEW_TEMPLATE, /硬扫描/);
 });

@@ -29,13 +29,13 @@ test("scan-hard returns envelope with agentDirective and hash", () => {
   assert.ok(result.data.agentDirective.forbiddenTerms);
 });
 
-test("runTool dispatches CLI names to garden tools", async () => {
+test("runTool dispatches CLI names to garden tools synchronously", () => {
   isolateState();
   const root = makeProject({
     "docs/index.md": "# Docs\n",
   });
 
-  const result = await runTool("scan-hard", {}, root, null);
+  const result = runTool("scan-hard", {}, root);
 
   assert.equal(result.tool, "garden-scan-hard");
   assert.equal(result.phase, "scan-hard");
