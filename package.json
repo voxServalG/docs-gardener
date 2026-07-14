@@ -1,5 +1,5 @@
 {
-  "name": "docs-gardener",
+  "name": "@voxserval/docs-gardener",
   "version": "1.0.0",
   "description": "MCP 文档语义审查工具 — 对比文档描述与代码实际行为是否一致",
   "type": "module",
@@ -10,7 +10,9 @@
   "scripts": {
     "check": "node --check src/index.js src/lib/*.js src/deploy/*.js",
     "test": "node --test test/*.test.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run check && npm run typecheck && npm test",
+    "prepublishOnly": "npm run verify"
   },
   "files": [
     "index.d.ts",
@@ -26,6 +28,17 @@
     "typescript": "^5.9.3"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voxServalG/docs-gardener.git"
+  },
+  "homepage": "https://github.com/voxServalG/docs-gardener#readme",
+  "bugs": {
+    "url": "https://github.com/voxServalG/docs-gardener/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   }

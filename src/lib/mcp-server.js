@@ -3,12 +3,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { runTool } from "./run-tool.js";
 
-export async function startServer() {
+export async function startServer(version = "0.0.0") {
   const projectRoot = process.cwd();
 
   const server = new McpServer({
     name: "docs-gardener",
-    version: "1.0.0",
+    version,
   });
 
   server.tool(
