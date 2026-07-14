@@ -6,6 +6,8 @@ Start with the [project overview](README.md).
 
 Writing guidance: [plain writing guidance](plain-writing-guidance.md).
 
+npm package and release boundary: [npm distribution](npm.md).
+
 ## Tools
 
 Reference documents for each tool:

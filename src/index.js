@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
 import { readJsonInput, runTool } from "./lib/run-tool.js";
 
 const command = process.argv[2];
 const projectRoot = process.cwd();
+const packageVersion = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")
+).version;
 
 async function main() {
   switch (command) {
@@ -15,7 +19,12 @@ async function main() {
     }
     case "mcp": {
       const { startServer } = await import("./lib/mcp-server.js");
-      await startServer();
+      await startServer(packageVersion);
+      break;
+    }
+    case "--version":
+    case "-v": {
+      console.log(packageVersion);
       break;
     }
     case "scan-hard":
@@ -46,6 +55,7 @@ async function main() {
     default: {
       console.log("docs-gardener · MCP 文档治理工具\n");
       console.log("用法:");
+      console.log("  docs-gardener --version                       显示版本");
       console.log("  docs-gardener deploy                          部署配置（交互式）");
       console.log("  docs-gardener mcp                             启动 MCP server");
       console.log("  docs-gardener scan                            组合扫描 (hard + soft)");
