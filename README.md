@@ -5,7 +5,7 @@ MCP 文档治理工具。它把文档系统分成硬校验（代码可判定）�
 ## 安装
 
 ```bash
-npm install -g @voxserval/docs-gardener@latest
+npm install -g @voxstudio/docs-gardener@latest
 ```
 
 国内网络需要镜像时，可显式追加 `--registry=https://registry.npmmirror.com`。更新使用同一条命令；MCP 客户端直接运行 `docs-gardener mcp`，不再通过 `npx` 或 GitHub 地址启动。
