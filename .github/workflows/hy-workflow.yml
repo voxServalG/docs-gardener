@@ -3,6 +3,7 @@ name: hy-workflow
 on:
   push:
     paths:
+      - ".github/workflows/**"
       - "src/**"
       - "test/**"
       - "tests/**"
@@ -17,6 +18,7 @@ on:
       - "tsconfig.json"
   pull_request:
     paths:
+      - ".github/workflows/**"
       - "src/**"
       - "test/**"
       - "tests/**"

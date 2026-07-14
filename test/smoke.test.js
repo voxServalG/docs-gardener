@@ -26,6 +26,13 @@ test("CLI default command prints usage", async () => {
   assert.match(stdout, /docs-gardener grow/);
 });
 
+test("CLI --version matches package.json", async () => {
+  const { stdout } = await execFileAsync(process.execPath, ["src/index.js", "--version"]);
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+
+  assert.equal(stdout.trim(), pkg.version);
+});
+
 test("CLI scan-hard prints a JSON envelope with agentDirective", async () => {
   const { stdout } = await execFileAsync(process.execPath, ["src/index.js", "scan-hard"], {
     env: envWithIsolatedState(),
