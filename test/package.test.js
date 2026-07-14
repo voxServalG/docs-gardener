@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 test("npm package is scoped, directly runnable, and source-only", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   assert.equal(pkg.name, "@voxserval/docs-gardener");
-  assert.equal(pkg.bin?.["docs-gardener"], "./src/index.js");
+  assert.equal(pkg.bin?.["docs-gardener"], "src/index.js");
   assert.equal(pkg.publishConfig?.access, "public");
   assert.equal(pkg.repository?.url, "git+https://github.com/voxServalG/docs-gardener.git");
   assert.equal(pkg.scripts?.prepublishOnly, "npm run verify");
