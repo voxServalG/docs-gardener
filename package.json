@@ -1,6 +1,6 @@
 {
   "name": "@voxserval/docs-gardener",
-  "version": "1.0.0",
+  "version": "1.0.0-next.0",
   "description": "MCP 文档语义审查工具 — 对比文档描述与代码实际行为是否一致",
   "type": "module",
   "types": "./index.d.ts",
